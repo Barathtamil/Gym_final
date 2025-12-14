@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Download, Edit, Trash2, RefreshCw, Phone, MapPin } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit, Trash2, RefreshCw, Phone, MapPin, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,115 +13,62 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Member } from '@/types';
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
-// Mock members data
-const mockMembers: Member[] = [
-  {
-    id: '1',
-    registrationNo: 'MG001',
-    fullName: 'Alex Johnson',
-    dateOfBirth: '1995-05-15',
-    age: 29,
-    phoneNumber: '9876543210',
-    batch: 'morning',
-    branchId: '1',
-    address: '123 Main Street',
-    bloodGroup: 'O+',
-    planId: '1',
-    planName: 'Premium Monthly',
-    planAmount: 2500,
-    paidAmount: 2500,
-    weight: 75,
-    height: 175,
-    gender: 'male',
-    planStartDate: '2024-12-01',
-    planEndDate: '2025-01-01',
-    daysLeft: 19,
-    balanceAmount: 0,
-    isActive: true,
-  },
-  {
-    id: '2',
-    registrationNo: 'MG002',
-    fullName: 'Sarah Williams',
-    dateOfBirth: '1998-08-22',
-    age: 26,
-    phoneNumber: '9876543211',
-    batch: 'evening',
-    branchId: '1',
-    address: '456 Oak Avenue',
-    bloodGroup: 'A+',
-    planId: '2',
-    planName: 'Quarterly Plan',
-    planAmount: 6500,
-    paidAmount: 5000,
-    weight: 58,
-    height: 165,
-    gender: 'female',
-    planStartDate: '2024-11-15',
-    planEndDate: '2025-02-15',
-    daysLeft: 64,
-    balanceAmount: 1500,
-    isActive: true,
-  },
-  {
-    id: '3',
-    registrationNo: 'MG003',
-    fullName: 'Mike Chen',
-    dateOfBirth: '1992-03-10',
-    age: 32,
-    phoneNumber: '9876543212',
-    batch: 'morning',
-    branchId: '1',
-    address: '789 Pine Road',
-    bloodGroup: 'B+',
-    planId: '1',
-    planName: 'Premium Monthly',
-    planAmount: 2500,
-    paidAmount: 2500,
-    weight: 82,
-    height: 180,
-    gender: 'male',
-    planStartDate: '2024-12-10',
-    planEndDate: '2024-12-15',
-    daysLeft: 2,
-    balanceAmount: 0,
-    isActive: true,
-  },
-  {
-    id: '4',
-    registrationNo: 'MG004',
-    fullName: 'Emma Davis',
-    dateOfBirth: '1996-11-28',
-    age: 28,
-    phoneNumber: '9876543213',
-    batch: 'evening',
-    branchId: '1',
-    address: '321 Elm Street',
-    bloodGroup: 'AB+',
-    planId: '3',
-    planName: 'Annual Plan',
-    planAmount: 22000,
-    paidAmount: 22000,
-    weight: 62,
-    height: 168,
-    gender: 'female',
-    planStartDate: '2024-01-01',
-    planEndDate: '2024-12-10',
-    daysLeft: -3,
-    balanceAmount: 0,
-    isActive: false,
-  },
-];
 
 export default function Members() {
-  const [members] = useState<Member[]>(mockMembers);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [pendingBalanceOnly, setPendingBalanceOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadMembers();
+    loadBranches();
+    loadPlans();
+  }, []);
+
+  const loadMembers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient.getMembers({ branchId: user?.branchId });
+      setMembers(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load members',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
+
+  const loadPlans = async () => {
+    try {
+      const data = await apiClient.getPlans();
+      setPlans(data || []);
+    } catch (error) {
+      console.error('Failed to load plans:', error);
+    }
+  };
 
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
@@ -251,7 +198,14 @@ export default function Members() {
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-display">NEW MEMBER REGISTRATION</DialogTitle>
                 </DialogHeader>
-                <MemberForm onClose={() => setIsFormOpen(false)} />
+                <MemberForm
+                  onClose={() => {
+                    setIsFormOpen(false);
+                    loadMembers();
+                  }}
+                  branches={branches}
+                  plans={plans}
+                />
               </DialogContent>
             </Dialog>
           </motion.div>
@@ -297,28 +251,54 @@ export default function Members() {
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredMembers}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredMembers.length / 10)}
-            onPageChange={setCurrentPage}
-            rowClassName={getRowClassName}
-            emptyMessage="No members found. Add your first member!"
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredMembers}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredMembers.length / 10)}
+              onPageChange={setCurrentPage}
+              rowClassName={getRowClassName}
+              emptyMessage="No members found. Add your first member!"
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>
   );
 }
 
-function MemberForm({ onClose }: { onClose: () => void }) {
+function MemberForm({ onClose, branches, plans }: { onClose: () => void; branches: any[]; plans: any[] }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [dob, setDob] = useState('');
   const [age, setAge] = useState<number | null>(null);
+  const [formData, setFormData] = useState({
+    registrationNo: '',
+    fullName: '',
+    dateOfBirth: '',
+    phoneNumber: '',
+    batch: 'morning' as 'morning' | 'evening',
+    branchId: user?.branchId || '',
+    address: '',
+    bloodGroup: '',
+    planId: '',
+    weight: '',
+    height: '',
+    gender: 'male' as 'male' | 'female' | 'other',
+    planStartDate: new Date().toISOString().split('T')[0],
+    planEndDate: '',
+    planAmount: 0,
+    paidAmount: 0,
+  });
 
   const handleDobChange = (value: string) => {
     setDob(value);
+    setFormData({ ...formData, dateOfBirth: value });
     if (value) {
       const birthDate = new Date(value);
       const today = new Date();
@@ -333,13 +313,44 @@ function MemberForm({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePlanChange = (planId: string) => {
+    const plan = plans.find((p) => p.id === planId);
+    if (plan) {
+      const startDate = new Date(formData.planStartDate);
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + plan.duration);
+      setFormData({
+        ...formData,
+        planId,
+        planAmount: plan.amount,
+        planEndDate: endDate.toISOString().split('T')[0],
+      });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({
-      title: 'Member Added!',
-      description: 'New member has been registered successfully.',
-    });
-    onClose();
+    try {
+      await apiClient.createMember({
+        ...formData,
+        age: age || 0,
+        weight: formData.weight ? parseFloat(formData.weight) : null,
+        height: formData.height ? parseFloat(formData.height) : null,
+        planAmount: formData.planAmount,
+        paidAmount: formData.paidAmount,
+      });
+      toast({
+        title: 'Member Added!',
+        description: 'New member has been registered successfully.',
+      });
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to register member',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -347,15 +358,33 @@ function MemberForm({ onClose }: { onClose: () => void }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Registration No</Label>
-          <Input placeholder="MG005" className="bg-input" />
+          <Input
+            value={formData.registrationNo}
+            onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+            placeholder="MG005"
+            className="bg-input"
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>Full Name</Label>
-          <Input placeholder="John Doe" className="bg-input" />
+          <Input
+            value={formData.fullName}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            placeholder="John Doe"
+            className="bg-input"
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>Date of Birth</Label>
-          <Input type="date" value={dob} onChange={(e) => handleDobChange(e.target.value)} className="bg-input" />
+          <Input
+            type="date"
+            value={dob}
+            onChange={(e) => handleDobChange(e.target.value)}
+            className="bg-input"
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>Age (Auto-calculated)</Label>
@@ -363,11 +392,20 @@ function MemberForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-2">
           <Label>Phone Number</Label>
-          <Input placeholder="9876543210" className="bg-input" />
+          <Input
+            value={formData.phoneNumber}
+            onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+            placeholder="9876543210"
+            className="bg-input"
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>Batch</Label>
-          <Select defaultValue="morning">
+          <Select
+            value={formData.batch}
+            onValueChange={(value) => setFormData({ ...formData, batch: value as 'morning' | 'evening' })}
+          >
             <SelectTrigger className="bg-input">
               <SelectValue />
             </SelectTrigger>
@@ -379,7 +417,10 @@ function MemberForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-2">
           <Label>Gender</Label>
-          <Select defaultValue="male">
+          <Select
+            value={formData.gender}
+            onValueChange={(value) => setFormData({ ...formData, gender: value as any })}
+          >
             <SelectTrigger className="bg-input">
               <SelectValue />
             </SelectTrigger>
@@ -392,7 +433,10 @@ function MemberForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-2">
           <Label>Blood Group</Label>
-          <Select>
+          <Select
+            value={formData.bloodGroup}
+            onValueChange={(value) => setFormData({ ...formData, bloodGroup: value })}
+          >
             <SelectTrigger className="bg-input">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
@@ -405,40 +449,104 @@ function MemberForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-2 md:col-span-2">
           <Label>Address</Label>
-          <Input placeholder="123 Main Street" className="bg-input" />
+          <Input
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            placeholder="123 Main Street"
+            className="bg-input"
+          />
         </div>
         <div className="space-y-2">
           <Label>Weight (kg)</Label>
-          <Input type="number" placeholder="70" className="bg-input" />
+          <Input
+            type="number"
+            value={formData.weight}
+            onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+            placeholder="70"
+            className="bg-input"
+          />
         </div>
         <div className="space-y-2">
           <Label>Height (cm)</Label>
-          <Input type="number" placeholder="175" className="bg-input" />
+          <Input
+            type="number"
+            value={formData.height}
+            onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+            placeholder="175"
+            className="bg-input"
+          />
         </div>
         <div className="space-y-2">
           <Label>Plan</Label>
-          <Select>
+          <Select value={formData.planId} onValueChange={handlePlanChange}>
             <SelectTrigger className="bg-input">
               <SelectValue placeholder="Select plan" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              <SelectItem value="1">Premium Monthly - ₹2,500</SelectItem>
-              <SelectItem value="2">Quarterly Plan - ₹6,500</SelectItem>
-              <SelectItem value="3">Annual Plan - ₹22,000</SelectItem>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name} - ₹{plan.amount.toLocaleString()}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label>Plan Start Date</Label>
-          <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-input" />
+          <Input
+            type="date"
+            value={formData.planStartDate}
+            onChange={(e) => {
+              const startDate = e.target.value;
+              if (formData.planId) {
+                const plan = plans.find((p) => p.id === formData.planId);
+                if (plan) {
+                  const endDate = new Date(startDate);
+                  endDate.setMonth(endDate.getMonth() + plan.duration);
+                  setFormData({
+                    ...formData,
+                    planStartDate: startDate,
+                    planEndDate: endDate.toISOString().split('T')[0],
+                  });
+                }
+              } else {
+                setFormData({ ...formData, planStartDate: startDate });
+              }
+            }}
+            className="bg-input"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Plan End Date</Label>
+          <Input
+            type="date"
+            value={formData.planEndDate}
+            readOnly
+            className="bg-muted"
+          />
         </div>
         <div className="space-y-2">
           <Label>Plan Amount (₹)</Label>
-          <Input type="number" placeholder="2500" className="bg-input" />
+          <Input
+            type="number"
+            value={formData.planAmount}
+            onChange={(e) => setFormData({ ...formData, planAmount: parseFloat(e.target.value) || 0 })}
+            placeholder="2500"
+            className="bg-input"
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>Paid Amount (₹)</Label>
-          <Input type="number" placeholder="2500" className="bg-input" />
+          <Input
+            type="number"
+            value={formData.paidAmount}
+            onChange={(e) => setFormData({ ...formData, paidAmount: parseFloat(e.target.value) || 0 })}
+            placeholder="2500"
+            className="bg-input"
+            required
+          />
         </div>
       </div>
 

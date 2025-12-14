@@ -1,75 +1,173 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Download, Edit, Trash2, CreditCard } from 'lucide-react';
+import { Plus, Search, Download, Edit, Trash2, CreditCard, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Multiselect } from '@/components/ui/multiselect';
 import { useToast } from '@/hooks/use-toast';
 import { Plan } from '@/types';
-
-// Mock plans data
-const mockPlans: Plan[] = [
-  {
-    id: '1',
-    name: 'Premium Monthly',
-    duration: 1,
-    amount: 2500,
-    branches: ['Main Branch', 'Downtown'],
-    createdAt: '2024-01-01',
-    createdBy: 'Admin',
-    updatedAt: '2024-12-01',
-    updatedBy: 'Admin',
-  },
-  {
-    id: '2',
-    name: 'Quarterly Plan',
-    duration: 3,
-    amount: 6500,
-    branches: ['All'],
-    createdAt: '2024-01-01',
-    createdBy: 'Admin',
-    updatedAt: '2024-11-15',
-    updatedBy: 'Admin',
-  },
-  {
-    id: '3',
-    name: 'Annual Plan',
-    duration: 12,
-    amount: 22000,
-    branches: ['Main Branch'],
-    createdAt: '2024-01-01',
-    createdBy: 'Admin',
-    updatedAt: '2024-10-20',
-    updatedBy: 'Admin',
-  },
-  {
-    id: '4',
-    name: 'Student Special',
-    duration: 1,
-    amount: 1800,
-    branches: ['Downtown'],
-    createdAt: '2024-06-01',
-    createdBy: 'Admin',
-    updatedAt: '2024-06-01',
-    updatedBy: 'Admin',
-  },
-];
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Plans() {
-  const [plans] = useState<Plan[]>(mockPlans);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const hasInitializedBranches = useRef(false);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    duration: 1,
+    amount: 0,
+    branches: [] as string[],
+  });
+
+  useEffect(() => {
+    loadPlans();
+    loadBranches();
+  }, []);
+
+  // Pre-select all branches only once when creating a new plan and form first opens
+  useEffect(() => {
+    if (!isEditMode && isFormOpen && branches.length > 0 && !hasInitializedBranches.current) {
+      const allBranchIds = branches.filter((b) => b && b.id).map((b) => b.id);
+      if (allBranchIds.length > 0) {
+        setFormData((prev) => ({ ...prev, branches: allBranchIds }));
+        hasInitializedBranches.current = true;
+      }
+    }
+    
+    // Reset the ref when form closes or switches to edit mode
+    if (!isFormOpen || isEditMode) {
+      hasInitializedBranches.current = false;
+    }
+  }, [isFormOpen, branches.length, isEditMode]);
+
+  const loadPlans = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient.getPlans();
+      setPlans(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load plans',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   const filteredPlans = plans.filter(
     (plan) =>
       plan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       plan.duration.toString().includes(searchQuery)
   );
+
+  const handleCreate = () => {
+    setIsEditMode(false);
+    setSelectedPlan(null);
+    hasInitializedBranches.current = false; // Reset ref for new form
+    setFormData({ name: '', duration: 1, amount: 0, branches: [] });
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (plan: Plan) => {
+    setIsEditMode(true);
+    setSelectedPlan(plan);
+    hasInitializedBranches.current = true; // Mark as initialized since we're loading existing data
+    setFormData({
+      name: plan.name,
+      duration: plan.duration,
+      amount: plan.amount,
+      branches: plan.branches || [],
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate that at least one branch is selected
+    if (!formData.branches || formData.branches.length === 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select at least one branch for this plan',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      if (isEditMode && selectedPlan) {
+        await apiClient.updatePlan(selectedPlan.id, {
+          ...formData,
+          createdBy: user?.id,
+          updatedBy: user?.id,
+        });
+        toast({ title: 'Success', description: 'Plan updated successfully' });
+      } else {
+        await apiClient.createPlan({
+          ...formData,
+          createdBy: user?.id || '',
+        });
+        toast({ title: 'Success', description: 'Plan created successfully' });
+      }
+      hasInitializedBranches.current = false;
+      setIsFormOpen(false);
+      loadPlans();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save plan',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this plan?')) return;
+    try {
+      await apiClient.deletePlan(id);
+      toast({ title: 'Success', description: 'Plan deleted successfully' });
+      loadPlans();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete plan',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBranchSelectionChange = (selectedBranchIds: string[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      branches: selectedBranchIds,
+    }));
+  };
 
   const columns = [
     {
@@ -101,25 +199,44 @@ export default function Plans() {
     {
       key: 'branches',
       header: 'Branches',
-      render: (plan: Plan) => (
-        <div className="flex flex-wrap gap-1">
-          {plan.branches.map((branch, i) => (
-            <span key={i} className="px-2 py-1 text-xs bg-muted rounded-full">
-              {branch}
-            </span>
-          ))}
-        </div>
-      ),
+      render: (plan: Plan) => {
+        const branchNames = branches
+          .filter((b) => (plan.branches || []).includes(b.id))
+          .map((b) => b.name);
+        return (
+          <div className="flex flex-wrap gap-1">
+            {branchNames.length > 0 ? (
+              branchNames.map((name, i) => (
+                <span key={i} className="px-2 py-1 text-xs bg-muted rounded-full">
+                  {name}
+                </span>
+              ))
+            ) : (
+              <span className="text-muted-foreground text-sm">All Branches</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',
       header: 'Actions',
       render: (plan: Plan) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hover:bg-secondary/20 hover:text-secondary">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(plan)}
+            className="hover:bg-secondary/20 hover:text-secondary"
+          >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-destructive/20 hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(plan.id)}
+            className="hover:bg-destructive/20 hover:text-destructive"
+          >
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -142,7 +259,7 @@ export default function Plans() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -161,43 +278,83 @@ export default function Plans() {
             </Button>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
-                <Button className="btn-matrix">
+                <Button onClick={handleCreate} className="btn-matrix">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Plan
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-display">NEW PLAN</DialogTitle>
+                  <DialogTitle className="text-2xl font-display">
+                    {isEditMode ? 'EDIT PLAN' : 'NEW PLAN'}
+                  </DialogTitle>
                 </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    toast({ title: 'Plan Added!', description: 'New plan has been created successfully.' });
-                    setIsFormOpen(false);
-                  }}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Plan Name</Label>
-                    <Input placeholder="e.g., Premium Monthly" className="bg-input" />
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Premium Monthly"
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Duration (Months)</Label>
-                      <Input type="number" placeholder="1" className="bg-input" />
+                      <Input
+                        type="number"
+                        value={formData.duration}
+                        onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 1 })}
+                        placeholder="1"
+                        className="bg-input"
+                        min="1"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Amount (₹)</Label>
-                      <Input type="number" placeholder="2500" className="bg-input" />
+                      <Input
+                        type="number"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                        placeholder="2500"
+                        className="bg-input"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Available Branches</Label>
+                    <Multiselect
+                      options={branches
+                        .filter((b) => b && b.id)
+                        .map((branch) => ({
+                          value: branch.id,
+                          label: branch.name || 'Unnamed Branch',
+                        }))}
+                      selected={formData.branches}
+                      onSelectionChange={handleBranchSelectionChange}
+                      placeholder="Select branches..."
+                      selectAllLabel="Select All Branches"
+                    />
+                  </div>
                   <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                    <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        hasInitializedBranches.current = false;
+                        setIsFormOpen(false);
+                      }}
+                    >
                       Cancel
                     </Button>
                     <Button type="submit" className="btn-matrix">
-                      Create Plan
+                      {isEditMode ? 'Update' : 'Create'} Plan
                     </Button>
                   </div>
                 </form>
@@ -226,14 +383,20 @@ export default function Plans() {
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredPlans}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredPlans.length / 10)}
-            onPageChange={setCurrentPage}
-            emptyMessage="No plans found. Create your first plan!"
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredPlans}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredPlans.length / 10)}
+              onPageChange={setCurrentPage}
+              emptyMessage="No plans found. Create your first plan!"
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

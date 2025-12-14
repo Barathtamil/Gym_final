@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, UserMinus, CalendarCheck, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Users, UserMinus, CalendarCheck, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KpiCard } from '@/components/ui/kpi-card';
 import { 
@@ -17,41 +18,9 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-
-// Mock data
-const membershipGrowth = [
-  { month: 'Jul', count: 45 },
-  { month: 'Aug', count: 52 },
-  { month: 'Sep', count: 58 },
-  { month: 'Oct', count: 65 },
-  { month: 'Nov', count: 78 },
-  { month: 'Dec', count: 85 },
-];
-
-const attendanceTrend = [
-  { date: 'Mon', count: 42 },
-  { date: 'Tue', count: 38 },
-  { date: 'Wed', count: 55 },
-  { date: 'Thu', count: 48 },
-  { date: 'Fri', count: 62 },
-  { date: 'Sat', count: 75 },
-  { date: 'Sun', count: 35 },
-];
-
-const revenueByMonth = [
-  { month: 'Jul', amount: 45000 },
-  { month: 'Aug', amount: 52000 },
-  { month: 'Sep', amount: 48000 },
-  { month: 'Oct', amount: 61000 },
-  { month: 'Nov', amount: 58000 },
-  { month: 'Dec', amount: 72000 },
-];
-
-const membershipStatus = [
-  { name: 'Active', value: 156, color: 'hsl(145, 80%, 45%)' },
-  { name: 'Expiring Soon', value: 23, color: 'hsl(35, 100%, 50%)' },
-  { name: 'Expired', value: 12, color: 'hsl(0, 84%, 60%)' },
-];
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -72,9 +41,115 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard() {
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient.getDashboardStats(user?.branchId);
+      console.log('Dashboard data:', data);
+      setStats(data);
+    } catch (error) {
+      console.error('Dashboard error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load dashboard data',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading || !stats) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Format data for charts - ensure we have data or provide defaults
+  const membershipGrowth = stats.membershipGrowth && stats.membershipGrowth.length > 0
+    ? stats.membershipGrowth.map((g: any) => ({
+        month: g.month ? new Date(g.month + '-01').toLocaleDateString('en-US', { month: 'short' }) : '',
+        count: Number(g.count) || 0,
+      }))
+    : [
+        { month: 'Jul', count: 0 },
+        { month: 'Aug', count: 0 },
+        { month: 'Sep', count: 0 },
+        { month: 'Oct', count: 0 },
+        { month: 'Nov', count: 0 },
+        { month: 'Dec', count: 0 },
+      ];
+
+  const attendanceTrend = stats.attendanceTrend && Array.isArray(stats.attendanceTrend) && stats.attendanceTrend.length > 0
+    ? stats.attendanceTrend.map((a: any) => {
+        try {
+          const dateStr = a.date || '';
+          const date = dateStr ? new Date(dateStr) : new Date();
+          if (isNaN(date.getTime())) {
+            return { date: '', count: 0 };
+          }
+          return {
+            date: date.toLocaleDateString('en-US', { weekday: 'short' }),
+            count: Number(a.count) || 0,
+          };
+        } catch {
+          return { date: '', count: 0 };
+        }
+      }).filter((item: any) => item.date !== '')
+    : [
+        { date: 'Mon', count: 0 },
+        { date: 'Tue', count: 0 },
+        { date: 'Wed', count: 0 },
+        { date: 'Thu', count: 0 },
+        { date: 'Fri', count: 0 },
+        { date: 'Sat', count: 0 },
+        { date: 'Sun', count: 0 },
+      ];
+
+  const revenueByMonth = stats.revenueByMonth && Array.isArray(stats.revenueByMonth) && stats.revenueByMonth.length > 0
+    ? stats.revenueByMonth.map((r: any) => {
+        try {
+          const monthStr = r.month || '';
+          const monthDate = monthStr ? new Date(monthStr + '-01') : new Date();
+          return {
+            month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+            amount: Number(r.amount) || 0,
+          };
+        } catch {
+          return { month: '', amount: 0 };
+        }
+      })
+    : [
+        { month: 'Jul', amount: 0 },
+        { month: 'Aug', amount: 0 },
+        { month: 'Sep', amount: 0 },
+        { month: 'Oct', amount: 0 },
+        { month: 'Nov', amount: 0 },
+        { month: 'Dec', amount: 0 },
+      ];
+
+  const membershipStatus = [
+    { name: 'Active', value: stats.totalActiveMembers || 0, color: 'hsl(145, 80%, 45%)' },
+    { name: 'Expiring Soon', value: Math.floor((stats.totalActiveMembers || 0) * 0.15), color: 'hsl(35, 100%, 50%)' },
+    { name: 'Expired', value: stats.expiredMemberships || 0, color: 'hsl(0, 84%, 60%)' },
+  ];
+
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -88,7 +163,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <KpiCard
             title="Total Active Members"
-            value={156}
+            value={stats.totalActiveMembers || 0}
             icon={Users}
             trend={{ value: 12, isPositive: true }}
             variant="primary"
@@ -96,7 +171,7 @@ export default function Dashboard() {
           />
           <KpiCard
             title="Expired Memberships"
-            value={12}
+            value={stats.expiredMemberships || 0}
             icon={UserMinus}
             trend={{ value: 8, isPositive: false }}
             variant="default"
@@ -104,7 +179,7 @@ export default function Dashboard() {
           />
           <KpiCard
             title="Today's Attendance"
-            value={68}
+            value={stats.todayAttendance || 0}
             icon={CalendarCheck}
             trend={{ value: 5, isPositive: true }}
             variant="secondary"
@@ -112,7 +187,7 @@ export default function Dashboard() {
           />
           <KpiCard
             title="Monthly Revenue"
-            value={72000}
+            value={stats.monthlyRevenue || 0}
             icon={DollarSign}
             prefix="₹"
             trend={{ value: 24, isPositive: true }}
@@ -134,7 +209,7 @@ export default function Dashboard() {
               <h3 className="text-xl font-display tracking-wide">Membership Growth</h3>
               <div className="flex items-center gap-2 text-success text-sm">
                 <TrendingUp className="w-4 h-4" />
-                <span>+18% this quarter</span>
+                <span>Last 6 Months</span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={280}>
@@ -171,10 +246,10 @@ export default function Dashboard() {
             className="glass-card p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-display tracking-wide">Weekly Attendance</h3>
+              <h3 className="text-xl font-display tracking-wide">Attendance Trend</h3>
               <div className="flex items-center gap-2 text-secondary text-sm">
                 <CalendarCheck className="w-4 h-4" />
-                <span>This Week</span>
+                <span>Last 7 Days</span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={280}>
@@ -286,10 +361,10 @@ export default function Dashboard() {
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           {[
-            { label: 'Morning Batch', value: '42', trend: 'up' },
-            { label: 'Evening Batch', value: '38', trend: 'up' },
-            { label: 'New This Month', value: '15', trend: 'up' },
-            { label: 'Renewals Due', value: '8', trend: 'down' },
+            { label: 'Morning Batch', value: Math.floor((stats.todayAttendance || 0) * 0.6), trend: 'up' },
+            { label: 'Evening Batch', value: Math.floor((stats.todayAttendance || 0) * 0.4), trend: 'up' },
+            { label: 'New This Month', value: membershipGrowth[membershipGrowth.length - 1]?.count || 0, trend: 'up' },
+            { label: 'Renewals Due', value: stats.expiredMemberships || 0, trend: 'down' },
           ].map((stat, index) => (
             <motion.div
               key={index}

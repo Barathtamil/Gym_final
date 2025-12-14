@@ -229,6 +229,167 @@ class ApiClient {
   async getActiveLogo() {
     return this.request('/logo');
   }
+
+  // Staff endpoints
+  async getStaff(branchId?: string) {
+    const query = branchId ? `?branchId=${branchId}` : '';
+    return this.request(`/staff${query}`);
+  }
+
+  async getStaffById(id: string) {
+    return this.request(`/staff/${id}`);
+  }
+
+  async createStaff(staffData: any) {
+    return this.request('/staff', {
+      method: 'POST',
+      body: JSON.stringify(staffData),
+    });
+  }
+
+  async updateStaff(id: string, staffData: any) {
+    return this.request(`/staff/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(staffData),
+    });
+  }
+
+  async deleteStaff(id: string) {
+    return this.request(`/staff/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Plan endpoints
+  async getPlans() {
+    return this.request('/plans');
+  }
+
+  async getPlanById(id: string) {
+    return this.request(`/plans/${id}`);
+  }
+
+  async createPlan(planData: any) {
+    return this.request('/plans', {
+      method: 'POST',
+      body: JSON.stringify(planData),
+    });
+  }
+
+  async updatePlan(id: string, planData: any) {
+    return this.request(`/plans/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(planData),
+    });
+  }
+
+  async deletePlan(id: string) {
+    return this.request(`/plans/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Branch endpoints
+  async getBranches() {
+    return this.request('/branches');
+  }
+
+  async getBranchById(id: string) {
+    return this.request(`/branches/${id}`);
+  }
+
+  async createBranch(branchData: any) {
+    return this.request('/branches', {
+      method: 'POST',
+      body: JSON.stringify(branchData),
+    });
+  }
+
+  async updateBranch(id: string, branchData: any) {
+    return this.request(`/branches/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(branchData),
+    });
+  }
+
+  async deleteBranch(id: string) {
+    return this.request(`/branches/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Expense endpoints
+  async getExpenses(filters?: { startDate?: string; endDate?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+
+    const query = params.toString();
+    return this.request(`/expenses${query ? `?${query}` : ''}`);
+  }
+
+  async getExpenseById(id: string) {
+    return this.request(`/expenses/${id}`);
+  }
+
+  async createExpense(expenseData: any) {
+    return this.request('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(expenseData),
+    });
+  }
+
+  async updateExpense(id: string, expenseData: any) {
+    return this.request(`/expenses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(expenseData),
+    });
+  }
+
+  async deleteExpense(id: string) {
+    return this.request(`/expenses/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Enquiry endpoints
+  async getEnquiries(filters?: { status?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+
+    const query = params.toString();
+    return this.request(`/enquiries${query ? `?${query}` : ''}`);
+  }
+
+  async getEnquiryById(id: string) {
+    return this.request(`/enquiries/${id}`);
+  }
+
+  async createEnquiry(enquiryData: any) {
+    return this.request('/enquiries', {
+      method: 'POST',
+      body: JSON.stringify(enquiryData),
+    });
+  }
+
+  async updateEnquiry(id: string, enquiryData: any) {
+    return this.request(`/enquiries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(enquiryData),
+    });
+  }
+
+  async deleteEnquiry(id: string) {
+    return this.request(`/enquiries/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Dashboard endpoint
+  async getDashboardStats(branchId?: string) {
+    const query = branchId ? `?branchId=${branchId}` : '';
+    return this.request(`/dashboard${query}`);
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

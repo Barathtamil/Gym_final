@@ -1,52 +1,115 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Download, Edit, Trash2, Building2, MapPin } from 'lucide-react';
+import { Plus, Search, Download, Edit, Trash2, Building2, MapPin, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Branch } from '@/types';
-
-// Mock branches data
-const mockBranches: Branch[] = [
-  {
-    id: '1',
-    name: 'Main Branch',
-    location: '123 Fitness Avenue, Downtown',
-    createdAt: '2024-01-01',
-    createdBy: 'Admin',
-  },
-  {
-    id: '2',
-    name: 'Downtown',
-    location: '456 Health Street, City Center',
-    createdAt: '2024-03-15',
-    createdBy: 'Admin',
-  },
-  {
-    id: '3',
-    name: 'Westside Gym',
-    location: '789 Muscle Lane, West District',
-    createdAt: '2024-06-20',
-    createdBy: 'Admin',
-  },
-];
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Branches() {
-  const [branches] = useState<Branch[]>(mockBranches);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    location: '',
+  });
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+
+  const loadBranches = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load branches',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredBranches = branches.filter(
     (branch) =>
       branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       branch.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleCreate = () => {
+    setIsEditMode(false);
+    setSelectedBranch(null);
+    setFormData({ name: '', location: '' });
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (branch: Branch) => {
+    setIsEditMode(true);
+    setSelectedBranch(branch);
+    setFormData({
+      name: branch.name,
+      location: branch.location || '',
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (isEditMode && selectedBranch) {
+        await apiClient.updateBranch(selectedBranch.id, formData);
+        toast({ title: 'Success', description: 'Branch updated successfully' });
+      } else {
+        await apiClient.createBranch({
+          ...formData,
+          createdBy: user?.id || '',
+        });
+        toast({ title: 'Success', description: 'Branch created successfully' });
+      }
+      setIsFormOpen(false);
+      loadBranches();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save branch',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this branch?')) return;
+    try {
+      await apiClient.deleteBranch(id);
+      toast({ title: 'Success', description: 'Branch deleted successfully' });
+      loadBranches();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete branch',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const columns = [
     {
@@ -85,10 +148,20 @@ export default function Branches() {
       header: 'Actions',
       render: (branch: Branch) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hover:bg-secondary/20 hover:text-secondary">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(branch)}
+            className="hover:bg-secondary/20 hover:text-secondary"
+          >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-destructive/20 hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(branch.id)}
+            className="hover:bg-destructive/20 hover:text-destructive"
+          >
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -111,7 +184,7 @@ export default function Branches() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -130,37 +203,44 @@ export default function Branches() {
             </Button>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
-                <Button className="btn-matrix">
+                <Button onClick={handleCreate} className="btn-matrix">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Branch
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-display">NEW BRANCH</DialogTitle>
+                  <DialogTitle className="text-2xl font-display">
+                    {isEditMode ? 'EDIT BRANCH' : 'NEW BRANCH'}
+                  </DialogTitle>
                 </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    toast({ title: 'Branch Added!', description: 'New branch has been created successfully.' });
-                    setIsFormOpen(false);
-                  }}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Branch Name</Label>
-                    <Input placeholder="e.g., Main Branch" className="bg-input" />
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Main Branch"
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Location</Label>
-                    <Input placeholder="e.g., 123 Fitness Avenue, Downtown" className="bg-input" />
+                    <Textarea
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="e.g., 123 Fitness Avenue, Downtown"
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="flex justify-end gap-3 pt-4 border-t border-border">
                     <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" className="btn-matrix">
-                      Create Branch
+                      {isEditMode ? 'Update' : 'Create'} Branch
                     </Button>
                   </div>
                 </form>
@@ -189,14 +269,20 @@ export default function Branches() {
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredBranches}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredBranches.length / 10)}
-            onPageChange={setCurrentPage}
-            emptyMessage="No branches found. Add your first branch!"
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredBranches}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredBranches.length / 10)}
+              onPageChange={setCurrentPage}
+              emptyMessage="No branches found. Add your first branch!"
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

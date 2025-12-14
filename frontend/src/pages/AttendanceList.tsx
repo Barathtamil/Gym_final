@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Download, CalendarCheck, Filter } from 'lucide-react';
+import { Search, Download, CalendarCheck, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,70 +9,74 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Attendance } from '@/types';
-
-// Mock attendance data
-const mockAttendance: (Attendance & { isPresent: boolean })[] = [
-  {
-    id: '1',
-    memberId: '1',
-    memberName: 'Alex Johnson',
-    registrationNo: 'MG001',
-    date: '2024-12-13',
-    checkInTime: '06:30 AM',
-    batch: 'morning',
-    isPresent: true,
-  },
-  {
-    id: '2',
-    memberId: '2',
-    memberName: 'Sarah Williams',
-    registrationNo: 'MG002',
-    date: '2024-12-13',
-    checkInTime: '05:45 PM',
-    batch: 'evening',
-    isPresent: true,
-  },
-  {
-    id: '3',
-    memberId: '3',
-    memberName: 'Mike Chen',
-    registrationNo: 'MG003',
-    date: '2024-12-13',
-    checkInTime: '-',
-    batch: 'morning',
-    isPresent: false,
-  },
-  {
-    id: '4',
-    memberId: '5',
-    memberName: 'John Smith',
-    registrationNo: 'MG005',
-    date: '2024-12-13',
-    checkInTime: '07:15 AM',
-    batch: 'morning',
-    isPresent: true,
-  },
-  {
-    id: '5',
-    memberId: '6',
-    memberName: 'Lisa Brown',
-    registrationNo: 'MG006',
-    date: '2024-12-13',
-    checkInTime: '-',
-    batch: 'evening',
-    isPresent: false,
-  },
-];
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AttendanceList() {
-  const [attendance] = useState(mockAttendance);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [allMembers, setAllMembers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [batchFilter, setBatchFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const { user } = useAuth();
   const { toast } = useToast();
 
-  const filteredAttendance = attendance.filter((record) => {
+  useEffect(() => {
+    loadAttendance();
+    loadAllMembers();
+  }, [selectedDate]);
+
+  const loadAttendance = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiClient.getAttendanceList({
+        date: selectedDate,
+        branchId: user?.branchId,
+      });
+      setAttendance(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load attendance',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadAllMembers = async () => {
+    try {
+      const members = await apiClient.getMembers({ branchId: user?.branchId, isActive: true });
+      setAllMembers(members || []);
+    } catch (error) {
+      console.error('Failed to load members:', error);
+    }
+  };
+
+  // Create a map of members who have attendance
+  const attendanceMap = new Map(attendance.map(a => [a.memberId, a]));
+  
+  // Combine all members with their attendance status
+  const attendanceWithStatus = allMembers.map(member => {
+    const att = attendanceMap.get(member.id);
+    return {
+      ...member,
+      id: att?.id || member.id,
+      memberId: member.id,
+      memberName: member.fullName,
+      registrationNo: member.registrationNo,
+      date: selectedDate,
+      checkInTime: att?.checkInTime || '-',
+      batch: member.batch,
+      isPresent: !!att,
+    };
+  });
+
+  const filteredAttendance = attendanceWithStatus.filter((record) => {
     const matchesSearch =
       record.memberName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.registrationNo.toLowerCase().includes(searchQuery.toLowerCase());
@@ -90,7 +94,7 @@ export default function AttendanceList() {
     {
       key: 'batch',
       header: 'Batch',
-      render: (record: typeof mockAttendance[0]) => (
+      render: (record: any) => (
         <StatusBadge variant={record.batch === 'morning' ? 'info' : 'default'}>
           {record.batch}
         </StatusBadge>
@@ -100,7 +104,7 @@ export default function AttendanceList() {
     {
       key: 'isPresent',
       header: 'Status',
-      render: (record: typeof mockAttendance[0]) => (
+      render: (record: any) => (
         <StatusBadge variant={record.isPresent ? 'success' : 'danger'} pulse={record.isPresent}>
           {record.isPresent ? 'Present' : 'Absent'}
         </StatusBadge>
@@ -126,7 +130,7 @@ export default function AttendanceList() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -134,7 +138,13 @@ export default function AttendanceList() {
             <p className="text-muted-foreground mt-1">Track daily member attendance</p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-input"
+            />
             <Button variant="outline" onClick={handleExport} className="hover:bg-accent/20">
               <Download className="w-4 h-4 mr-2" />
               Export
@@ -154,7 +164,7 @@ export default function AttendanceList() {
             </div>
             <div>
               <p className="text-2xl font-display">{filteredAttendance.length}</p>
-              <p className="text-sm text-muted-foreground">Total Records</p>
+              <p className="text-sm text-muted-foreground">Total Members</p>
             </div>
           </div>
           <div className="glass-card p-4 flex items-center gap-4">
@@ -217,14 +227,20 @@ export default function AttendanceList() {
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredAttendance}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredAttendance.length / 10)}
-            onPageChange={setCurrentPage}
-            emptyMessage="No attendance records found for today."
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredAttendance}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredAttendance.length / 10)}
+              onPageChange={setCurrentPage}
+              emptyMessage="No attendance records found for selected date."
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Download, Edit, Trash2, Phone, Calendar, MessageCircle } from 'lucide-react';
+import { Plus, Search, Download, Edit, Trash2, Phone, Calendar, MessageCircle, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,48 +9,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Enquiry } from '@/types';
-
-// Mock enquiries data
-const mockEnquiries: Enquiry[] = [
-  {
-    id: '1',
-    name: 'David Wilson',
-    address: '567 Oak Lane, Suburb',
-    date: '2024-12-13',
-    phoneNumber: '9876543220',
-    followUpDate: '2024-12-15',
-    status: 'pending',
-  },
-  {
-    id: '2',
-    name: 'Jennifer Lee',
-    address: '890 Pine Street, Downtown',
-    date: '2024-12-12',
-    phoneNumber: '9876543221',
-    followUpDate: '2024-12-14',
-    status: 'contacted',
-  },
-  {
-    id: '3',
-    name: 'Robert Brown',
-    address: '234 Maple Drive, Uptown',
-    date: '2024-12-10',
-    phoneNumber: '9876543222',
-    followUpDate: '2024-12-13',
-    status: 'converted',
-  },
-  {
-    id: '4',
-    name: 'Emily Davis',
-    address: '456 Elm Road, City Center',
-    date: '2024-12-08',
-    phoneNumber: '9876543223',
-    followUpDate: '2024-12-11',
-    status: 'closed',
-  },
-];
+import apiClient from '@/lib/api';
 
 const statusVariants: Record<string, 'warning' | 'info' | 'success' | 'danger'> = {
   pending: 'warning',
@@ -60,17 +22,116 @@ const statusVariants: Record<string, 'warning' | 'info' | 'success' | 'danger'> 
 };
 
 export default function Enquiries() {
-  const [enquiries] = useState<Enquiry[]>(mockEnquiries);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    phoneNumber: '',
+    address: '',
+    date: new Date().toISOString().split('T')[0],
+    followUpDate: '',
+    status: 'pending' as 'pending' | 'contacted' | 'converted' | 'closed',
+  });
+
+  useEffect(() => {
+    loadEnquiries();
+  }, [statusFilter]);
+
+  const loadEnquiries = async () => {
+    try {
+      setIsLoading(true);
+      const filters: any = {};
+      if (statusFilter !== 'all') filters.status = statusFilter;
+      const data = await apiClient.getEnquiries(filters);
+      setEnquiries(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load enquiries',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredEnquiries = enquiries.filter(
     (enquiry) =>
       enquiry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      enquiry.phoneNumber.includes(searchQuery)
+      enquiry.phoneNumber?.includes(searchQuery)
   );
+
+  const handleCreate = () => {
+    setIsEditMode(false);
+    setSelectedEnquiry(null);
+    setFormData({
+      name: '',
+      phoneNumber: '',
+      address: '',
+      date: new Date().toISOString().split('T')[0],
+      followUpDate: '',
+      status: 'pending',
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (enquiry: Enquiry) => {
+    setIsEditMode(true);
+    setSelectedEnquiry(enquiry);
+    setFormData({
+      name: enquiry.name,
+      phoneNumber: enquiry.phoneNumber || '',
+      address: enquiry.address || '',
+      date: enquiry.date,
+      followUpDate: enquiry.followUpDate || '',
+      status: enquiry.status,
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (isEditMode && selectedEnquiry) {
+        await apiClient.updateEnquiry(selectedEnquiry.id, formData);
+        toast({ title: 'Success', description: 'Enquiry updated successfully' });
+      } else {
+        await apiClient.createEnquiry(formData);
+        toast({ title: 'Success', description: 'Enquiry created successfully' });
+      }
+      setIsFormOpen(false);
+      loadEnquiries();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save enquiry',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this enquiry?')) return;
+    try {
+      await apiClient.deleteEnquiry(id);
+      toast({ title: 'Success', description: 'Enquiry deleted successfully' });
+      loadEnquiries();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete enquiry',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const columns = [
     {
@@ -107,11 +168,11 @@ export default function Enquiries() {
       key: 'followUpDate',
       header: 'Follow-up',
       render: (enquiry: Enquiry) => {
-        const isOverdue = new Date(enquiry.followUpDate) < new Date() && enquiry.status === 'pending';
+        const isOverdue = enquiry.followUpDate && new Date(enquiry.followUpDate) < new Date() && enquiry.status === 'pending';
         return (
           <div className={`flex items-center gap-2 ${isOverdue ? 'text-destructive' : ''}`}>
             <MessageCircle className="w-4 h-4" />
-            <span>{new Date(enquiry.followUpDate).toLocaleDateString()}</span>
+            <span>{enquiry.followUpDate ? new Date(enquiry.followUpDate).toLocaleDateString() : '-'}</span>
             {isOverdue && <span className="text-xs">(Overdue)</span>}
           </div>
         );
@@ -131,10 +192,20 @@ export default function Enquiries() {
       header: 'Actions',
       render: (enquiry: Enquiry) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hover:bg-secondary/20 hover:text-secondary">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(enquiry)}
+            className="hover:bg-secondary/20 hover:text-secondary"
+          >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-destructive/20 hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(enquiry.id)}
+            className="hover:bg-destructive/20 hover:text-destructive"
+          >
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -155,9 +226,16 @@ export default function Enquiries() {
     }, 2000);
   };
 
+  const statusCounts = {
+    pending: enquiries.filter((e) => e.status === 'pending').length,
+    contacted: enquiries.filter((e) => e.status === 'contacted').length,
+    converted: enquiries.filter((e) => e.status === 'converted').length,
+    closed: enquiries.filter((e) => e.status === 'closed').length,
+  };
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -176,51 +254,92 @@ export default function Enquiries() {
             </Button>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
-                <Button className="btn-matrix">
+                <Button onClick={handleCreate} className="btn-matrix">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Enquiry
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-display">NEW ENQUIRY</DialogTitle>
+                  <DialogTitle className="text-2xl font-display">
+                    {isEditMode ? 'EDIT ENQUIRY' : 'NEW ENQUIRY'}
+                  </DialogTitle>
                 </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    toast({ title: 'Enquiry Added!', description: 'New enquiry has been recorded successfully.' });
-                    setIsFormOpen(false);
-                  }}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Name</Label>
-                    <Input placeholder="e.g., John Doe" className="bg-input" />
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., John Doe"
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Phone Number</Label>
-                    <Input placeholder="9876543210" className="bg-input" />
+                    <Input
+                      value={formData.phoneNumber}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                      placeholder="9876543210"
+                      className="bg-input"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Address</Label>
-                    <Textarea placeholder="Enter address..." className="bg-input" />
+                    <Textarea
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Enter address..."
+                      className="bg-input"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Enquiry Date</Label>
-                      <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-input" />
+                      <Input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className="bg-input"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>Follow-up Date</Label>
-                      <Input type="date" className="bg-input" />
+                      <Input
+                        type="date"
+                        value={formData.followUpDate}
+                        onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                        className="bg-input"
+                      />
                     </div>
                   </div>
+                  {isEditMode && (
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value) => setFormData({ ...formData, status: value as any })}
+                      >
+                        <SelectTrigger className="bg-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="contacted">Contacted</SelectItem>
+                          <SelectItem value="converted">Converted</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="flex justify-end gap-3 pt-4 border-t border-border">
                     <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" className="btn-matrix">
-                      Add Enquiry
+                      {isEditMode ? 'Update' : 'Add'} Enquiry
                     </Button>
                   </div>
                 </form>
@@ -236,10 +355,10 @@ export default function Enquiries() {
           className="grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           {[
-            { label: 'Pending', count: enquiries.filter((e) => e.status === 'pending').length, color: 'warning' },
-            { label: 'Contacted', count: enquiries.filter((e) => e.status === 'contacted').length, color: 'secondary' },
-            { label: 'Converted', count: enquiries.filter((e) => e.status === 'converted').length, color: 'success' },
-            { label: 'Closed', count: enquiries.filter((e) => e.status === 'closed').length, color: 'destructive' },
+            { label: 'Pending', count: statusCounts.pending, color: 'warning' },
+            { label: 'Contacted', count: statusCounts.contacted, color: 'secondary' },
+            { label: 'Converted', count: statusCounts.converted, color: 'success' },
+            { label: 'Closed', count: statusCounts.closed, color: 'destructive' },
           ].map((stat, index) => (
             <div key={index} className="glass-card p-4 text-center">
               <p className={`text-3xl font-display text-${stat.color}`}>{stat.count}</p>
@@ -253,9 +372,9 @@ export default function Enquiries() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-card p-4"
+          className="glass-card p-4 flex gap-4"
         >
-          <div className="relative max-w-md">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Search by name or phone..."
@@ -264,18 +383,36 @@ export default function Enquiries() {
               className="pl-10 bg-input"
             />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40 bg-input">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="converted">Converted</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
         </motion.div>
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredEnquiries}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredEnquiries.length / 10)}
-            onPageChange={setCurrentPage}
-            emptyMessage="No enquiries found. Add your first enquiry!"
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredEnquiries}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredEnquiries.length / 10)}
+              onPageChange={setCurrentPage}
+              emptyMessage="No enquiries found. Add your first enquiry!"
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

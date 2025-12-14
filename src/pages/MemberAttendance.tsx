@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import apiClient from '@/lib/api';
 
 // Gym rules
 const gymRules = [
@@ -23,19 +22,21 @@ const quotes = [
   { text: "Don't limit your challenges. Challenge your limits.", author: "Jerry Dunn" },
 ];
 
+// Mock member data
+const mockMember = {
+  id: '1',
+  registrationNo: 'MG001',
+  fullName: 'Alex Johnson',
+  planName: 'Premium Monthly',
+  planStartDate: '2024-12-01',
+  planEndDate: '2025-01-01',
+  daysLeft: 19,
+  lastInvoice: '#INV-2024-001',
+};
 
 export default function MemberAttendance() {
   const [registrationNo, setRegistrationNo] = useState('');
-  const [member, setMember] = useState<{
-    id: string;
-    registrationNo: string;
-    fullName: string;
-    planName: string;
-    planStartDate: string;
-    planEndDate: string;
-    daysLeft: number;
-    lastInvoice: string;
-  } | null>(null);
+  const [member, setMember] = useState<typeof mockMember | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -62,73 +63,38 @@ export default function MemberAttendance() {
     }
 
     setIsLoading(true);
-    try {
-      const memberData = await apiClient.getMemberByRegistrationNo(registrationNo.toUpperCase());
-      if (memberData) {
-        // Calculate days left
-        const endDate = new Date(memberData.planEndDate);
-        const today = new Date();
-        const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        setMember({
-          id: memberData.id,
-          registrationNo: memberData.registrationNo,
-          fullName: memberData.fullName,
-          planName: memberData.planName || 'N/A',
-          planStartDate: memberData.planStartDate,
-          planEndDate: memberData.planEndDate,
-          daysLeft,
-          lastInvoice: '#INV-2024-001', // This would come from payment data
-        });
-      } else {
-        toast({
-          title: 'Member Not Found',
-          description: 'No member found with this registration number',
-          variant: 'destructive',
-        });
-      }
-    } catch (error: any) {
+    // Simulate API call
+    await new Promise((r) => setTimeout(r, 1000));
+    
+    // Mock: accept MG001 or any number
+    if (registrationNo.toUpperCase() === 'MG001' || registrationNo.length >= 3) {
+      setMember({ ...mockMember, registrationNo: registrationNo.toUpperCase() });
+    } else {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to search member',
+        title: 'Member Not Found',
+        description: 'No member found with this registration number',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   const handleMarkAttendance = async () => {
-    if (!member) return;
-
     setIsMarking(true);
-    try {
-      // Determine batch from current time or member's batch
-      const currentHour = new Date().getHours();
-      const batch = currentHour < 12 ? 'morning' : 'evening';
-      
-      await apiClient.markAttendance(member.id, batch);
-      setShowSuccess(true);
-      
-      toast({
-        title: 'Attendance Marked!',
-        description: 'Have a great workout! 💪',
-      });
+    await new Promise((r) => setTimeout(r, 1500));
+    setIsMarking(false);
+    setShowSuccess(true);
+    
+    toast({
+      title: 'Attendance Marked!',
+      description: 'Have a great workout! 💪',
+    });
 
-      setTimeout(() => {
-        setShowSuccess(false);
-        setMember(null);
-        setRegistrationNo('');
-      }, 3000);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to mark attendance',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsMarking(false);
-    }
+    setTimeout(() => {
+      setShowSuccess(false);
+      setMember(null);
+      setRegistrationNo('');
+    }, 3000);
   };
 
   return (

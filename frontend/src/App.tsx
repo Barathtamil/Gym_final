@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import AttendanceList from "./pages/AttendanceList";
+import Staffs from "./pages/Staffs";
 import Plans from "./pages/Plans";
 import Branches from "./pages/Branches";
 import Expenses from "./pages/Expenses";
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Dashboard /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Members /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AttendanceList /></ProtectedRoute>} />
+      <Route path="/staffs" element={<ProtectedRoute allowedRoles={['admin']}><Staffs /></ProtectedRoute>} />
       <Route path="/plans" element={<ProtectedRoute allowedRoles={['admin']}><Plans /></ProtectedRoute>} />
       <Route path="/branches" element={<ProtectedRoute allowedRoles={['admin']}><Branches /></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Expenses /></ProtectedRoute>} />

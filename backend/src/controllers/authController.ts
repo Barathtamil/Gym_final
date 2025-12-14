@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import authService from '../services/authService.js';
 import logger from '../utils/logger.js';
-import { AppError } from '../middleware/errorHandler.js';
 
 export const login = async (
   req: Request,

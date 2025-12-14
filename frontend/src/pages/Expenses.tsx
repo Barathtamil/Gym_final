@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Download, Edit, Trash2, Receipt, Calendar } from 'lucide-react';
+import { Plus, Search, Download, Edit, Trash2, Receipt, Calendar, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,63 +10,51 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Expense } from '@/types';
-
-// Mock expenses data
-const mockExpenses: Expense[] = [
-  {
-    id: '1',
-    date: '2024-12-13',
-    name: 'Electricity Bill',
-    amount: 15000,
-    remark: 'December month electricity charges',
-    createdAt: '2024-12-13',
-    createdBy: 'Admin',
-    updatedAt: '2024-12-13',
-    updatedBy: 'Admin',
-  },
-  {
-    id: '2',
-    date: '2024-12-12',
-    name: 'Equipment Maintenance',
-    amount: 8500,
-    remark: 'Treadmill and cross trainer servicing',
-    createdAt: '2024-12-12',
-    createdBy: 'Staff',
-    updatedAt: '2024-12-12',
-    updatedBy: 'Staff',
-  },
-  {
-    id: '3',
-    date: '2024-12-10',
-    name: 'Cleaning Supplies',
-    amount: 2500,
-    remark: 'Monthly cleaning materials',
-    createdAt: '2024-12-10',
-    createdBy: 'Staff',
-    updatedAt: '2024-12-10',
-    updatedBy: 'Staff',
-  },
-  {
-    id: '4',
-    date: '2024-12-08',
-    name: 'Water Bill',
-    amount: 3200,
-    remark: 'December water charges',
-    createdAt: '2024-12-08',
-    createdBy: 'Admin',
-    updatedAt: '2024-12-08',
-    updatedBy: 'Admin',
-  },
-];
+import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Expenses() {
-  const [expenses] = useState<Expense[]>(mockExpenses);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    name: '',
+    amount: 0,
+    remark: '',
+  });
+
+  useEffect(() => {
+    loadExpenses();
+  }, [dateFrom, dateTo]);
+
+  const loadExpenses = async () => {
+    try {
+      setIsLoading(true);
+      const filters: any = {};
+      if (dateFrom) filters.startDate = dateFrom;
+      if (dateTo) filters.endDate = dateTo;
+      const data = await apiClient.getExpenses(filters);
+      setExpenses(data || []);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load expenses',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredExpenses = expenses.filter((expense) => {
     const matchesSearch = expense.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -76,6 +64,72 @@ export default function Expenses() {
   });
 
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const handleCreate = () => {
+    setIsEditMode(false);
+    setSelectedExpense(null);
+    setFormData({
+      date: new Date().toISOString().split('T')[0],
+      name: '',
+      amount: 0,
+      remark: '',
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleEdit = (expense: Expense) => {
+    setIsEditMode(true);
+    setSelectedExpense(expense);
+    setFormData({
+      date: expense.date,
+      name: expense.name,
+      amount: expense.amount,
+      remark: expense.remark || '',
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (isEditMode && selectedExpense) {
+        await apiClient.updateExpense(selectedExpense.id, {
+          ...formData,
+          updatedBy: user?.id,
+        });
+        toast({ title: 'Success', description: 'Expense updated successfully' });
+      } else {
+        await apiClient.createExpense({
+          ...formData,
+          createdBy: user?.id || '',
+        });
+        toast({ title: 'Success', description: 'Expense created successfully' });
+      }
+      setIsFormOpen(false);
+      loadExpenses();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save expense',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) return;
+    try {
+      await apiClient.deleteExpense(id);
+      toast({ title: 'Success', description: 'Expense deleted successfully' });
+      loadExpenses();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete expense',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const columns = [
     {
@@ -119,10 +173,20 @@ export default function Expenses() {
       header: 'Actions',
       render: (expense: Expense) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hover:bg-secondary/20 hover:text-secondary">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleEdit(expense)}
+            className="hover:bg-secondary/20 hover:text-secondary"
+          >
             <Edit className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-destructive/20 hover:text-destructive">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDelete(expense.id)}
+            className="hover:bg-destructive/20 hover:text-destructive"
+          >
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
@@ -145,7 +209,7 @@ export default function Expenses() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
@@ -164,45 +228,66 @@ export default function Expenses() {
             </Button>
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
               <DialogTrigger asChild>
-                <Button className="btn-matrix">
+                <Button onClick={handleCreate} className="btn-matrix">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Expense
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-display">NEW EXPENSE</DialogTitle>
+                  <DialogTitle className="text-2xl font-display">
+                    {isEditMode ? 'EDIT EXPENSE' : 'NEW EXPENSE'}
+                  </DialogTitle>
                 </DialogHeader>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    toast({ title: 'Expense Added!', description: 'New expense has been recorded successfully.' });
-                    setIsFormOpen(false);
-                  }}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Expense Date</Label>
-                    <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-input" />
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Expense Name</Label>
-                    <Input placeholder="e.g., Electricity Bill" className="bg-input" />
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Electricity Bill"
+                      className="bg-input"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Amount (₹)</Label>
-                    <Input type="number" placeholder="5000" className="bg-input" />
+                    <Input
+                      type="number"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="5000"
+                      className="bg-input"
+                      min="0"
+                      step="0.01"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Remark</Label>
-                    <Textarea placeholder="Add any notes..." className="bg-input" />
+                    <Textarea
+                      value={formData.remark}
+                      onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                      placeholder="Add any notes..."
+                      className="bg-input"
+                    />
                   </div>
                   <div className="flex justify-end gap-3 pt-4 border-t border-border">
                     <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" className="btn-matrix">
-                      Add Expense
+                      {isEditMode ? 'Update' : 'Add'} Expense
                     </Button>
                   </div>
                 </form>
@@ -266,14 +351,20 @@ export default function Expenses() {
 
         {/* Data Table */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <DataTable
-            data={filteredExpenses}
-            columns={columns}
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredExpenses.length / 10)}
-            onPageChange={setCurrentPage}
-            emptyMessage="No expenses found. Add your first expense!"
-          />
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredExpenses}
+              columns={columns}
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredExpenses.length / 10)}
+              onPageChange={setCurrentPage}
+              emptyMessage="No expenses found. Add your first expense!"
+            />
+          )}
         </motion.div>
       </div>
     </DashboardLayout>

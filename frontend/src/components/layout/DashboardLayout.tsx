@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Dumbbell,
+  UserCog,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'staff'] },
   { label: 'Members', icon: Users, path: '/members', roles: ['admin', 'staff'] },
   { label: 'Attendance', icon: CalendarCheck, path: '/attendance', roles: ['admin', 'staff'] },
+  { label: 'Staffs', icon: UserCog, path: '/staffs', roles: ['admin'] },
   { label: 'Plans', icon: CreditCard, path: '/plans', roles: ['admin'] },
   { label: 'Branches', icon: Building2, path: '/branches', roles: ['admin'] },
   { label: 'Expenses', icon: Receipt, path: '/expenses', roles: ['admin', 'staff'] },

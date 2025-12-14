@@ -3,7 +3,7 @@ import { DashboardStats } from '../types/index.js';
 
 export class DashboardService {
   async getDashboardStats(branchId?: string): Promise<DashboardStats> {
-    const branchFilter = branchId ? 'AND m.branchId = ?' : '';
+    const branchFilter = branchId ? 'AND branchId = ?' : '';
     const params = branchId ? [branchId] : [];
 
     // Total active members
@@ -95,10 +95,28 @@ export class DashboardService {
         month: g.month,
         count: g.count,
       })),
-      attendanceTrend: (attendance as any[]).map((a) => ({
-        date: a.date.toISOString().split('T')[0],
-        count: a.count,
-      })),
+      attendanceTrend: (attendance as any[]).map((a) => {
+        try {
+          // Handle date - could be Date object or string
+          let dateValue: Date;
+          if (a.date instanceof Date) {
+            dateValue = a.date;
+          } else if (typeof a.date === 'string') {
+            dateValue = new Date(a.date);
+          } else {
+            dateValue = new Date();
+          }
+          return {
+            date: dateValue.toISOString().split('T')[0],
+            count: Number(a.count) || 0,
+          };
+        } catch (error) {
+          return {
+            date: new Date().toISOString().split('T')[0],
+            count: Number(a.count) || 0,
+          };
+        }
+      }),
       revenueByMonth: (revenueByMonth as any[]).map((r) => ({
         month: r.month,
         amount: parseFloat(r.amount || 0),

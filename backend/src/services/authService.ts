@@ -39,11 +39,11 @@ export class AuthService {
 
     const accessToken = jwt.sign(payload, jwtConfig.secret, {
       expiresIn: jwtConfig.expiresIn,
-    });
+    } as jwt.SignOptions);
 
     const refreshToken = jwt.sign(payload, jwtConfig.refreshSecret, {
       expiresIn: jwtConfig.refreshExpiresIn,
-    });
+    } as jwt.SignOptions);
 
     // Store refresh token
     const expiresAt = new Date();
@@ -95,11 +95,11 @@ export class AuthService {
 
       const newAccessToken = jwt.sign(payload, jwtConfig.secret, {
         expiresIn: jwtConfig.expiresIn,
-      });
+      } as jwt.SignOptions);
 
       const newRefreshToken = jwt.sign(payload, jwtConfig.refreshSecret, {
         expiresIn: jwtConfig.refreshExpiresIn,
-      });
+      } as jwt.SignOptions);
 
       // Update refresh token in database
       const expiresAt = new Date();
