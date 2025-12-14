@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Loader2, Dumbbell } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-// Import bodybuilder image
+// Import bodybuilder image and logo
 import back3 from '@/assets/background/back3.jpg';
+import logo from '@/assets/logo/logo.png';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -89,11 +90,15 @@ export default function Login() {
           >
             <div className="flex items-center gap-4 mb-6">
               <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-16 h-16 bg-primary/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-xl border-2 border-primary/50"
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-20 h-20 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-xl border-2 border-primary/50 p-2"
               >
-                <Dumbbell className="w-9 h-9 text-primary-foreground" />
+                <img
+                  src={logo}
+                  alt="Matrix Gym Logo"
+                  className="w-full h-full object-contain"
+                />
               </motion.div>
               <div>
                 <h1 className="text-5xl font-display tracking-wider text-gradient drop-shadow-lg">
@@ -134,8 +139,12 @@ export default function Login() {
         >
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <Dumbbell className="w-7 h-7 text-primary-foreground" />
+            <div className="w-16 h-16 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg border-2 border-primary/50 p-2">
+              <img
+                src={logo}
+                alt="Matrix Gym Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-3xl font-display tracking-wider text-gradient">MATRIX GYM</h1>
           </div>
@@ -249,44 +258,6 @@ export default function Login() {
                 </Button>
               </motion.div>
             </form>
-
-            {/* Demo credentials */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-              className="mt-8 p-5 bg-muted/40 backdrop-blur-sm rounded-xl border border-border/50 shadow-lg"
-            >
-              <p className="text-xs text-muted-foreground text-center mb-3 font-semibold uppercase tracking-wider">
-                Demo Credentials
-              </p>
-              <div className="grid grid-cols-3 gap-3 text-xs">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className="p-3 bg-background/60 backdrop-blur-sm rounded-lg border border-primary/20 hover:border-primary/40 transition-all cursor-pointer"
-                >
-                  <p className="font-bold text-primary mb-1">Admin</p>
-                  <p className="text-muted-foreground text-[10px]">admin</p>
-                  <p className="text-muted-foreground text-[10px]">admin123</p>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className="p-3 bg-background/60 backdrop-blur-sm rounded-lg border border-secondary/20 hover:border-secondary/40 transition-all cursor-pointer"
-                >
-                  <p className="font-bold text-secondary mb-1">Staff</p>
-                  <p className="text-muted-foreground text-[10px]">staff</p>
-                  <p className="text-muted-foreground text-[10px]">staff123</p>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  className="p-3 bg-background/60 backdrop-blur-sm rounded-lg border border-accent/20 hover:border-accent/40 transition-all cursor-pointer"
-                >
-                  <p className="font-bold text-accent mb-1">Member</p>
-                  <p className="text-muted-foreground text-[10px]">member</p>
-                  <p className="text-muted-foreground text-[10px]">member123</p>
-                </motion.div>
-              </div>
-            </motion.div>
           </div>
         </motion.div>
       </div>
