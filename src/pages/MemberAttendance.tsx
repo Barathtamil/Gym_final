@@ -181,7 +181,7 @@ export default function MemberAttendance() {
       </div>
 
       {/* Right Panel - Attendance Registration */}
-      <div className="flex-1 flex flex-col min-h-screen p-6 lg:p-12">
+      <div className="flex-1 flex flex-col min-h-screen p-6 lg:p-12 bg-background">
         {/* Header with Logout */}
         <div className="flex justify-between items-center mb-8">
           <div className="lg:hidden flex items-center gap-3">
@@ -208,7 +208,7 @@ export default function MemberAttendance() {
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.5, opacity: 0 }}
-                className="text-center"
+                className="text-center w-full"
               >
                 <motion.div
                   animate={{ scale: [1, 1.2, 1] }}
@@ -232,7 +232,7 @@ export default function MemberAttendance() {
                 <motion.div
                   initial={{ y: 20 }}
                   animate={{ y: 0 }}
-                  className="glass-card p-8 border border-primary/30 mb-6"
+                  className="glass-card p-8 border-2 border-primary/30 backdrop-blur-xl bg-card/90 shadow-2xl mb-6"
                 >
                   <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
                     <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
@@ -287,7 +287,7 @@ export default function MemberAttendance() {
                     <Button
                       onClick={handleMarkAttendance}
                       disabled={isMarking}
-                      className="w-full h-16 btn-matrix text-xl font-display tracking-wider"
+                      className="w-full h-16 btn-matrix text-xl font-display tracking-wider shadow-lg hover:shadow-xl"
                     >
                       {isMarking ? (
                         <motion.div
@@ -326,31 +326,57 @@ export default function MemberAttendance() {
                 className="w-full text-center"
               >
                 <motion.div
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-24 h-24 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-primary/30"
+                  animate={{ scale: [1, 1.08, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                  className="w-28 h-28 bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-8 border-2 border-primary/40 shadow-lg"
                 >
-                  <User className="w-12 h-12 text-primary" />
+                  <User className="w-14 h-14 text-primary" />
                 </motion.div>
 
-                <h2 className="text-3xl lg:text-4xl font-display mb-2">MARK YOUR ATTENDANCE</h2>
-                <p className="text-muted-foreground mb-8">Enter your registration number to check in</p>
+                <motion.h2
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-3xl lg:text-5xl font-display mb-3 text-gradient"
+                >
+                  MARK YOUR ATTENDANCE
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-muted-foreground mb-10 text-lg"
+                >
+                  Enter your registration number to check in
+                </motion.p>
 
-                <div className="space-y-4">
-                  <Input
-                    type="text"
-                    value={registrationNo}
-                    onChange={(e) => setRegistrationNo(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="e.g., MG001"
-                    className="h-16 text-2xl text-center font-mono bg-input border-2 border-border focus:border-primary input-glow uppercase tracking-widest"
-                  />
+                <div className="space-y-6">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <Input
+                      type="text"
+                      value={registrationNo}
+                      onChange={(e) => setRegistrationNo(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="e.g., MG001"
+                      className="h-20 lg:h-24 text-2xl lg:text-3xl text-center font-mono bg-input/80 backdrop-blur-sm border-2 border-border focus:border-primary input-glow uppercase tracking-widest shadow-lg"
+                    />
+                  </motion.div>
 
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                  >
                     <Button
                       onClick={handleSearch}
                       disabled={isLoading}
-                      className="w-full h-14 btn-matrix text-lg font-display tracking-wider"
+                      className="w-full h-14 btn-matrix text-lg font-display tracking-wider shadow-lg hover:shadow-xl"
                     >
                       {isLoading ? (
                         <motion.div
@@ -365,9 +391,14 @@ export default function MemberAttendance() {
                   </motion.div>
                 </div>
 
-                <p className="text-xs text-muted-foreground mt-6">
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="text-xs text-muted-foreground mt-6"
+                >
                   Try: <span className="text-primary font-mono">MG001</span> or any 3+ character code
-                </p>
+                </motion.p>
               </motion.div>
             )}
           </AnimatePresence>
