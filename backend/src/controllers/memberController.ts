@@ -71,7 +71,30 @@ export const createMember = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const member = await memberService.createMember(req.body);
+    // Extract member data from form fields (multer middleware already processed the file)
+    const memberData = {
+      registrationNo: req.body.registrationNo || undefined,
+      fullName: req.body.fullName,
+      dateOfBirth: req.body.dateOfBirth,
+      age: parseInt(req.body.age) || 0,
+      phoneNumber: req.body.phoneNumber,
+      batch: req.body.batch,
+      branchId: req.body.branchId,
+      address: req.body.address || '',
+      bloodGroup: req.body.bloodGroup || '',
+      planId: req.body.planId,
+      weight: req.body.weight ? parseFloat(req.body.weight) : null,
+      height: req.body.height ? parseFloat(req.body.height) : null,
+      gender: req.body.gender,
+      planStartDate: req.body.planStartDate,
+      planEndDate: req.body.planEndDate,
+      planAmount: req.body.planAmount ? parseFloat(req.body.planAmount) : 0,
+      paidAmount: req.body.paidAmount ? parseFloat(req.body.paidAmount) : 0,
+      isActive: req.body.isActive !== undefined ? req.body.isActive === 'true' : true,
+      profileImage: (req as any).file ? `/uploads/profiles/${(req as any).file.filename}` : null,
+    };
+
+    const member = await memberService.createMember(memberData);
     res.status(201).json(member);
   } catch (error) {
     logger.error('Create member error:', error);

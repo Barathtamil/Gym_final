@@ -85,7 +85,7 @@ export class MemberService {
     return members.length > 0 ? members[0] : null;
   }
 
-  async createMember(memberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt'>): Promise<Member> {
+  async createMember(memberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'planName' | 'daysLeft' | 'balanceAmount'>): Promise<Member> {
     const id = uuidv4();
     const registrationNo = await this.generateRegistrationNo(memberData.branchId);
 
@@ -93,8 +93,8 @@ export class MemberService {
       `INSERT INTO members (
         id, registrationNo, fullName, dateOfBirth, age, phoneNumber, 
         batch, branchId, address, bloodGroup, planId, weight, height, 
-        gender, planStartDate, planEndDate, isActive
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        gender, planStartDate, planEndDate, isActive, profileImage
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         registrationNo,
@@ -113,6 +113,7 @@ export class MemberService {
         memberData.planStartDate,
         memberData.planEndDate,
         memberData.isActive ? 1 : 0,
+        (memberData as any).profileImage || null,
       ]
     );
 

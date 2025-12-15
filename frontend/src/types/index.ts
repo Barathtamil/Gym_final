@@ -53,6 +53,7 @@ export interface Member {
   daysLeft: number;
   balanceAmount: number;
   isActive: boolean;
+  profileImage?: string | null;
 }
 
 export interface Attendance {

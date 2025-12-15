@@ -48,14 +48,15 @@ export interface Member {
   planName: string;
   planAmount: number;
   paidAmount: number;
-  weight: number;
-  height: number;
+  weight: number | null;
+  height: number | null;
   gender: 'male' | 'female' | 'other';
   planStartDate: Date;
   planEndDate: Date;
   daysLeft: number;
   balanceAmount: number;
   isActive: boolean;
+  profileImage?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

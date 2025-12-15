@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Member } from '@/types';
@@ -277,6 +278,7 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
   const { user } = useAuth();
   const [dob, setDob] = useState('');
   const [age, setAge] = useState<number | null>(null);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     registrationNo: '',
     fullName: '',
@@ -330,15 +332,137 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation: All fields required except profile image
+    if (!formData.registrationNo || formData.registrationNo.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter registration number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.fullName || formData.fullName.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter full name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select date of birth',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.phoneNumber || formData.phoneNumber.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter phone number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.address || formData.address.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.bloodGroup || formData.bloodGroup.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select blood group',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.planId || formData.planId.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select plan',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.planStartDate) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select plan start date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.planEndDate) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select plan end date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validation: Weight, Height, Plan Amount, Paid Amount should not be zero
+    const weightValue = formData.weight ? parseFloat(formData.weight) : 0;
+    if (!formData.weight || weightValue <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid weight (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const heightValue = formData.height ? parseFloat(formData.height) : 0;
+    if (!formData.height || heightValue <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid height (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.planAmount || formData.planAmount <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid plan amount (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.paidAmount || formData.paidAmount <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid paid amount (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      await apiClient.createMember({
+      await apiClient.createMemberWithImage({
         ...formData,
         age: age || 0,
-        weight: formData.weight ? parseFloat(formData.weight) : null,
-        height: formData.height ? parseFloat(formData.height) : null,
+        weight: weightValue,
+        height: heightValue,
         planAmount: formData.planAmount,
         paidAmount: formData.paidAmount,
-      });
+      }, profileImage);
       toast({
         title: 'Member Added!',
         description: 'New member has been registered successfully.',
@@ -355,6 +479,12 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Profile Image Upload - Full Width */}
+      <ImageUpload
+        value={profileImage}
+        onChange={setProfileImage}
+        label="Profile Picture"
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Registration No</Label>
@@ -454,6 +584,7 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             placeholder="123 Main Street"
             className="bg-input"
+            required
           />
         </div>
         <div className="space-y-2">
@@ -464,6 +595,9 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
             placeholder="70"
             className="bg-input"
+            required
+            min="0.01"
+            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -474,6 +608,9 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, height: e.target.value })}
             placeholder="175"
             className="bg-input"
+            required
+            min="0.01"
+            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -535,6 +672,8 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             placeholder="2500"
             className="bg-input"
             required
+            min="0.01"
+            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -546,6 +685,8 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             placeholder="2500"
             className="bg-input"
             required
+            min="0.01"
+            step="0.01"
           />
         </div>
       </div>

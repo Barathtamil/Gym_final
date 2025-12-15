@@ -183,6 +183,71 @@ class ApiClient {
     });
   }
 
+  async createMemberWithImage(memberData: any, profileImage: File | null) {
+    const url = `${this.baseURL}/members`;
+    const formData = new FormData();
+    
+    // Append all member data as JSON string
+    Object.keys(memberData).forEach((key) => {
+      const value = memberData[key];
+      if (value !== null && value !== undefined) {
+        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    });
+    
+    // Append profile image if provided
+    if (profileImage) {
+      formData.append('profileImage', profileImage);
+    }
+
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+    // Don't set Content-Type for FormData, browser will set it with boundary
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      // Handle token refresh on 401
+      if (response.status === 401) {
+        const refreshed = await this.refreshAccessToken();
+        if (refreshed) {
+          headers['Authorization'] = `Bearer ${this.accessToken}`;
+          const retryResponse = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: formData,
+          });
+          if (!retryResponse.ok) {
+            const error = await retryResponse.json().catch(() => ({ error: 'Request failed' }));
+            throw new Error(error.error || `HTTP error! status: ${retryResponse.status}`);
+          }
+          return retryResponse.json();
+        } else {
+          this.setAccessToken(null);
+          this.setRefreshToken(null);
+          window.location.href = '/login';
+          throw new Error('Session expired');
+        }
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
+    }
+  }
+
   async updateMember(id: string, memberData: any) {
     return this.request(`/members/${id}`, {
       method: 'PUT',
