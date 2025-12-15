@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Multiselect } from '@/components/ui/multiselect';
@@ -22,6 +24,8 @@ export default function Plans() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -110,6 +114,34 @@ export default function Plans() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Form validation with toast
+    if (!formData.name || formData.name.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter plan name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.duration || formData.duration <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid duration (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.amount || formData.amount <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid amount (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Validate that at least one branch is selected
     if (!formData.branches || formData.branches.length === 0) {
       toast({
@@ -147,12 +179,19 @@ export default function Plans() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this plan?')) return;
+  const handleDeleteClick = (plan: Plan) => {
+    setPlanToDelete(plan);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!planToDelete) return;
     try {
-      await apiClient.deletePlan(id);
+      await apiClient.deletePlan(planToDelete.id);
       toast({ title: 'Success', description: 'Plan deleted successfully' });
       loadPlans();
+      setDeleteDialogOpen(false);
+      setPlanToDelete(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -222,24 +261,40 @@ export default function Plans() {
       key: 'actions',
       header: 'Actions',
       render: (plan: Plan) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(plan)}
-            className="hover:bg-secondary/20 hover:text-secondary"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(plan.id)}
-            className="hover:bg-destructive/20 hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(plan)}
+                  className="hover:bg-secondary/20 hover:text-secondary"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Plan</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteClick(plan)}
+                  className="hover:bg-destructive/20 hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Plan</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       ),
     },
   ];
@@ -297,7 +352,6 @@ export default function Plans() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., Premium Monthly"
                       className="bg-input"
-                      required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -309,8 +363,6 @@ export default function Plans() {
                         onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 1 })}
                         placeholder="1"
                         className="bg-input"
-                        min="1"
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -321,9 +373,6 @@ export default function Plans() {
                         onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                         placeholder="2500"
                         className="bg-input"
-                        min="0"
-                        step="0.01"
-                        required
                       />
                     </div>
                   </div>
@@ -398,6 +447,29 @@ export default function Plans() {
             />
           )}
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-display text-foreground">Delete Plan</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground pt-2">
+                Are you sure you want to delete <span className="font-semibold text-foreground">{planToDelete?.name}</span>? 
+                <br />
+                <span className="text-destructive mt-2 block">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="bg-input hover:bg-accent/20 border-border">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

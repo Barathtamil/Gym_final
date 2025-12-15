@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +22,8 @@ export default function Branches() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -74,6 +78,26 @@ export default function Branches() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Form validation with toast
+    if (!formData.name || formData.name.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter branch name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.location || formData.location.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter branch location',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       if (isEditMode && selectedBranch) {
         await apiClient.updateBranch(selectedBranch.id, formData);
@@ -96,12 +120,19 @@ export default function Branches() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this branch?')) return;
+  const handleDeleteClick = (branch: Branch) => {
+    setBranchToDelete(branch);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!branchToDelete) return;
     try {
-      await apiClient.deleteBranch(id);
+      await apiClient.deleteBranch(branchToDelete.id);
       toast({ title: 'Success', description: 'Branch deleted successfully' });
       loadBranches();
+      setDeleteDialogOpen(false);
+      setBranchToDelete(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -147,24 +178,40 @@ export default function Branches() {
       key: 'actions',
       header: 'Actions',
       render: (branch: Branch) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(branch)}
-            className="hover:bg-secondary/20 hover:text-secondary"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(branch.id)}
-            className="hover:bg-destructive/20 hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(branch)}
+                  className="hover:bg-secondary/20 hover:text-secondary"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Branch</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteClick(branch)}
+                  className="hover:bg-destructive/20 hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Branch</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       ),
     },
   ];
@@ -222,7 +269,6 @@ export default function Branches() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., Main Branch"
                       className="bg-input"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -232,7 +278,6 @@ export default function Branches() {
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                       placeholder="e.g., 123 Fitness Avenue, Downtown"
                       className="bg-input"
-                      required
                     />
                   </div>
                   <div className="flex justify-end gap-3 pt-4 border-t border-border">
@@ -284,6 +329,29 @@ export default function Branches() {
             />
           )}
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-display text-foreground">Delete Branch</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground pt-2">
+                Are you sure you want to delete <span className="font-semibold text-foreground">{branchToDelete?.name}</span>? 
+                <br />
+                <span className="text-destructive mt-2 block">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="bg-input hover:bg-accent/20 border-border">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +23,8 @@ export default function Staffs() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<User | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -104,6 +108,43 @@ export default function Staffs() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Form validation with toast
+    if (!formData.name || formData.name.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter full name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.username || formData.username.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter username',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isEditMode && (!formData.password || formData.password.trim() === '')) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.branchId || formData.branchId.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select a branch',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       if (isEditMode && selectedStaff) {
         const updateData: any = {
@@ -145,18 +186,22 @@ export default function Staffs() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to deactivate this staff member?')) {
-      return;
-    }
+  const handleDeleteClick = (staffMember: User) => {
+    setStaffToDelete(staffMember);
+    setDeleteDialogOpen(true);
+  };
 
+  const handleDelete = async () => {
+    if (!staffToDelete) return;
     try {
-      await apiClient.deleteStaff(id);
+      await apiClient.deleteStaff(staffToDelete.id);
       toast({
         title: 'Success',
         description: 'Staff deactivated successfully',
       });
       loadStaff();
+      setDeleteDialogOpen(false);
+      setStaffToDelete(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -213,24 +258,40 @@ export default function Staffs() {
       key: 'actions',
       header: 'Actions',
       render: (staffMember: User) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(staffMember)}
-            className="h-8 w-8"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(staffMember.id)}
-            className="h-8 w-8 text-destructive hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(staffMember)}
+                  className="h-8 w-8 hover:bg-secondary/20 hover:text-secondary"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Staff</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteClick(staffMember)}
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/20"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Staff</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       ),
     },
   ];
@@ -263,7 +324,6 @@ export default function Staffs() {
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -272,7 +332,6 @@ export default function Staffs() {
                       id="username"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      required
                       disabled={isEditMode}
                     />
                   </div>
@@ -287,7 +346,6 @@ export default function Staffs() {
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={!isEditMode}
                   />
                 </div>
 
@@ -379,6 +437,29 @@ export default function Staffs() {
             emptyMessage="No staff members found"
           />
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-display text-foreground">Deactivate Staff</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground pt-2">
+                Are you sure you want to deactivate <span className="font-semibold text-foreground">{staffToDelete?.name}</span>? 
+                <br />
+                <span className="text-destructive mt-2 block">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="bg-input hover:bg-accent/20 border-border">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

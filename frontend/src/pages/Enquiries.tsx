@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,6 +31,8 @@ export default function Enquiries() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [enquiryToDelete, setEnquiryToDelete] = useState<Enquiry | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -99,6 +103,26 @@ export default function Enquiries() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Form validation with toast
+    if (!formData.name || formData.name.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.date) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select enquiry date',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       if (isEditMode && selectedEnquiry) {
         await apiClient.updateEnquiry(selectedEnquiry.id, formData);
@@ -118,12 +142,19 @@ export default function Enquiries() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this enquiry?')) return;
+  const handleDeleteClick = (enquiry: Enquiry) => {
+    setEnquiryToDelete(enquiry);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!enquiryToDelete) return;
     try {
-      await apiClient.deleteEnquiry(id);
+      await apiClient.deleteEnquiry(enquiryToDelete.id);
       toast({ title: 'Success', description: 'Enquiry deleted successfully' });
       loadEnquiries();
+      setDeleteDialogOpen(false);
+      setEnquiryToDelete(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -191,24 +222,40 @@ export default function Enquiries() {
       key: 'actions',
       header: 'Actions',
       render: (enquiry: Enquiry) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleEdit(enquiry)}
-            className="hover:bg-secondary/20 hover:text-secondary"
-          >
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleDelete(enquiry.id)}
-            className="hover:bg-destructive/20 hover:text-destructive"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleEdit(enquiry)}
+                  className="hover:bg-secondary/20 hover:text-secondary"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Enquiry</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteClick(enquiry)}
+                  className="hover:bg-destructive/20 hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Enquiry</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       ),
     },
   ];
@@ -273,7 +320,6 @@ export default function Enquiries() {
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., John Doe"
                       className="bg-input"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -302,7 +348,6 @@ export default function Enquiries() {
                         value={formData.date}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         className="bg-input"
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -414,6 +459,29 @@ export default function Enquiries() {
             />
           )}
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-display text-foreground">Delete Enquiry</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground pt-2">
+                Are you sure you want to delete <span className="font-semibold text-foreground">{enquiryToDelete?.name}</span>? 
+                <br />
+                <span className="text-destructive mt-2 block">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="bg-input hover:bg-accent/20 border-border">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
