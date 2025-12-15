@@ -13,12 +13,12 @@ export class MemberService {
       SELECT 
         m.*,
         p.name as planName,
-        p.amount as planAmount,
+        COALESCE(m.planAmount, p.amount, 0) as planAmount,
+        COALESCE(m.paidAmount, 0) as paidAmount,
         DATEDIFF(m.planEndDate, CURDATE()) as daysLeft,
-        (p.amount - COALESCE(SUM(pm.amount), 0)) as balanceAmount
+        (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      LEFT JOIN payment_members pm ON m.id = pm.memberId
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -39,7 +39,7 @@ export class MemberService {
       params.push(searchTerm, searchTerm, searchTerm);
     }
 
-    query += ' GROUP BY m.id ORDER BY m.createdAt DESC';
+    query += ' ORDER BY m.createdAt DESC';
 
     const [rows] = await pool.execute(query, params);
     return rows as Member[];
@@ -50,14 +50,13 @@ export class MemberService {
       `SELECT 
         m.*,
         p.name as planName,
-        p.amount as planAmount,
+        COALESCE(m.planAmount, p.amount, 0) as planAmount,
+        COALESCE(m.paidAmount, 0) as paidAmount,
         DATEDIFF(m.planEndDate, CURDATE()) as daysLeft,
-        (p.amount - COALESCE(SUM(pm.amount), 0)) as balanceAmount
+        (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      LEFT JOIN payment_members pm ON m.id = pm.memberId
-      WHERE m.id = ?
-      GROUP BY m.id`,
+      WHERE m.id = ?`,
       [id]
     );
 
@@ -70,14 +69,13 @@ export class MemberService {
       `SELECT 
         m.*,
         p.name as planName,
-        p.amount as planAmount,
+        COALESCE(m.planAmount, p.amount, 0) as planAmount,
+        COALESCE(m.paidAmount, 0) as paidAmount,
         DATEDIFF(m.planEndDate, CURDATE()) as daysLeft,
-        (p.amount - COALESCE(SUM(pm.amount), 0)) as balanceAmount
+        (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      LEFT JOIN payment_members pm ON m.id = pm.memberId
-      WHERE m.registrationNo = ?
-      GROUP BY m.id`,
+      WHERE m.registrationNo = ?`,
       [registrationNo]
     );
 
@@ -93,8 +91,8 @@ export class MemberService {
       `INSERT INTO members (
         id, registrationNo, fullName, dateOfBirth, age, phoneNumber, 
         batch, branchId, address, bloodGroup, planId, weight, height, 
-        gender, planStartDate, planEndDate, isActive, profileImage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        gender, planStartDate, planEndDate, planAmount, paidAmount, isActive, profileImage
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         registrationNo,
@@ -112,6 +110,8 @@ export class MemberService {
         memberData.gender,
         memberData.planStartDate,
         memberData.planEndDate,
+        (memberData as any).planAmount || 0,
+        (memberData as any).paidAmount || 0,
         memberData.isActive ? 1 : 0,
         (memberData as any).profileImage || null,
       ]
@@ -149,6 +149,42 @@ export class MemberService {
   async deleteMember(id: string): Promise<void> {
     await pool.execute('UPDATE members SET isActive = 0 WHERE id = ?', [id]);
     logger.info(`Member deactivated: ${id}`);
+  }
+
+  async renewMember(id: string, planId: string, durationMonths: number): Promise<Member> {
+    // Get current member and plan details
+    const member = await this.getMemberById(id);
+    if (!member) {
+      throw new Error('Member not found');
+    }
+
+    // Get plan details
+    const [planRows] = await pool.execute('SELECT * FROM plans WHERE id = ?', [planId]);
+    const plans = planRows as any[];
+    if (plans.length === 0) {
+      throw new Error('Plan not found');
+    }
+
+    // Calculate new end date from current end date (or today if expired)
+    const currentEndDate = new Date(member.planEndDate);
+    const today = new Date();
+    const startDate = currentEndDate > today ? currentEndDate : today;
+    const newEndDate = new Date(startDate);
+    newEndDate.setMonth(newEndDate.getMonth() + durationMonths);
+
+    // Update member with new plan and dates
+    await pool.execute(
+      `UPDATE members 
+       SET planId = ?, 
+           planStartDate = ?, 
+           planEndDate = ?,
+           isActive = 1
+       WHERE id = ?`,
+      [planId, startDate.toISOString().split('T')[0], newEndDate.toISOString().split('T')[0], id]
+    );
+
+    logger.info(`Member renewed: ${id} with plan ${planId} for ${durationMonths} months`);
+    return this.getMemberById(id) as Promise<Member>;
   }
 
   private async generateRegistrationNo(branchId: string): Promise<string> {

@@ -9,8 +9,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { ImageUpload } from '@/components/ui/image-upload';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Member } from '@/types';
@@ -27,6 +29,12 @@ export default function Members() {
   const [pendingBalanceOnly, setPendingBalanceOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [renewDialogOpen, setRenewDialogOpen] = useState(false);
+  const [memberToRenew, setMemberToRenew] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -125,27 +133,73 @@ export default function Members() {
     {
       key: 'balanceAmount',
       header: 'Balance',
-      render: (member: Member) => (
-        <span className={member.balanceAmount > 0 ? 'text-warning font-semibold' : 'text-muted-foreground'}>
-          ₹{member.balanceAmount.toLocaleString()}
-        </span>
-      ),
+      render: (member: Member) => {
+        // Calculate balance from stored values: planAmount - paidAmount
+        const planAmount = member.planAmount || 0;
+        const paidAmount = member.paidAmount || 0;
+        const balance = planAmount - paidAmount;
+        return (
+          <span className={balance > 0 ? 'text-warning font-semibold' : 'text-muted-foreground'}>
+            ₹{balance.toLocaleString()}
+          </span>
+        );
+      },
     },
     {
       key: 'actions',
       header: 'Actions',
       render: (member: Member) => (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hover:bg-secondary/20 hover:text-secondary">
-            <Edit className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-destructive/20 hover:text-destructive">
-            <Trash2 className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="hover:bg-success/20 hover:text-success">
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-secondary/20 hover:text-secondary"
+                  onClick={() => handleEdit(member)}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit Member</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-destructive/20 hover:text-destructive"
+                  onClick={() => handleDeleteClick(member)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete Member</p>
+              </TooltipContent>
+            </Tooltip>
+            {member.daysLeft <= 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="hover:bg-success/20 hover:text-success"
+                    onClick={() => handleRenewClick(member)}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Renew Membership</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </TooltipProvider>
       ),
     },
   ];
@@ -167,6 +221,62 @@ export default function Members() {
         description: 'Members list has been exported successfully.',
       });
     }, 2000);
+  };
+
+  const handleEdit = (member: Member) => {
+    setSelectedMember(member);
+    setIsEditMode(true);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (member: Member) => {
+    setMemberToDelete(member);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!memberToDelete) return;
+    try {
+      await apiClient.deleteMember(memberToDelete.id);
+      toast({
+        title: 'Success',
+        description: 'Member deleted successfully',
+      });
+      loadMembers();
+      setDeleteDialogOpen(false);
+      setMemberToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete member',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRenewClick = (member: Member) => {
+    setMemberToRenew(member);
+    setRenewDialogOpen(true);
+  };
+
+  const handleRenew = async (planId: string, durationMonths: number) => {
+    if (!memberToRenew) return;
+    try {
+      await apiClient.renewMember(memberToRenew.id, planId, durationMonths);
+      toast({
+        title: 'Success',
+        description: 'Member renewed successfully',
+      });
+      loadMembers();
+      setRenewDialogOpen(false);
+      setMemberToRenew(null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to renew member',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -197,15 +307,20 @@ export default function Members() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl font-display">NEW MEMBER REGISTRATION</DialogTitle>
+                  <DialogTitle className="text-2xl font-display">
+                    {isEditMode ? 'EDIT MEMBER' : 'NEW MEMBER REGISTRATION'}
+                  </DialogTitle>
                 </DialogHeader>
                 <MemberForm
                   onClose={() => {
                     setIsFormOpen(false);
+                    setIsEditMode(false);
+                    setSelectedMember(null);
                     loadMembers();
                   }}
                   branches={branches}
                   plans={plans}
+                  member={isEditMode ? selectedMember : null}
                 />
               </DialogContent>
             </Dialog>
@@ -268,34 +383,79 @@ export default function Members() {
             />
           )}
         </motion.div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-card border-border max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-2xl font-display text-foreground">Delete Member</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground pt-2">
+                Are you sure you want to delete <span className="font-semibold text-foreground">{memberToDelete?.fullName}</span>? 
+                <br />
+                <span className="text-destructive mt-2 block">This action cannot be undone.</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel className="bg-input hover:bg-accent/20 border-border">Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete} 
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Renew Dialog */}
+        <Dialog open={renewDialogOpen} onOpenChange={setRenewDialogOpen}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Renew Membership</DialogTitle>
+            </DialogHeader>
+            {memberToRenew && (
+              <RenewMemberForm
+                member={memberToRenew}
+                plans={plans}
+                onClose={() => {
+                  setRenewDialogOpen(false);
+                  setMemberToRenew(null);
+                }}
+                onRenew={handleRenew}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
 }
 
-function MemberForm({ onClose, branches, plans }: { onClose: () => void; branches: any[]; plans: any[] }) {
+function MemberForm({ onClose, branches, plans, member }: { onClose: () => void; branches: any[]; plans: any[]; member?: Member | null }) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [dob, setDob] = useState('');
-  const [age, setAge] = useState<number | null>(null);
+  const isEditMode = !!member;
+  const [dob, setDob] = useState(member?.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '');
+  const [age, setAge] = useState<number | null>(member?.age || null);
   const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(member?.profileImage || null);
   const [formData, setFormData] = useState({
-    registrationNo: '',
-    fullName: '',
-    dateOfBirth: '',
-    phoneNumber: '',
-    batch: 'morning' as 'morning' | 'evening',
-    branchId: user?.branchId || '',
-    address: '',
-    bloodGroup: '',
-    planId: '',
-    weight: '',
-    height: '',
-    gender: 'male' as 'male' | 'female' | 'other',
-    planStartDate: new Date().toISOString().split('T')[0],
-    planEndDate: '',
-    planAmount: 0,
-    paidAmount: 0,
+    registrationNo: member?.registrationNo || '',
+    fullName: member?.fullName || '',
+    dateOfBirth: member?.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '',
+    phoneNumber: member?.phoneNumber || '',
+    batch: (member?.batch || 'morning') as 'morning' | 'evening',
+    branchId: member?.branchId || user?.branchId || '',
+    address: member?.address || '',
+    bloodGroup: member?.bloodGroup || '',
+    planId: member?.planId || '',
+    weight: member?.weight?.toString() || '',
+    height: member?.height?.toString() || '',
+    gender: (member?.gender || 'male') as 'male' | 'female' | 'other',
+    planStartDate: member?.planStartDate ? new Date(member.planStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    planEndDate: member?.planEndDate ? new Date(member.planEndDate).toISOString().split('T')[0] : '',
+    planAmount: member?.planAmount || 0,
+    paidAmount: member?.paidAmount || 0,
   });
 
   const handleDobChange = (value: string) => {
@@ -455,23 +615,38 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
     }
 
     try {
-      await apiClient.createMemberWithImage({
-        ...formData,
-        age: age || 0,
-        weight: weightValue,
-        height: heightValue,
-        planAmount: formData.planAmount,
-        paidAmount: formData.paidAmount,
-      }, profileImage);
-      toast({
-        title: 'Member Added!',
-        description: 'New member has been registered successfully.',
-      });
+      if (isEditMode && member) {
+        await apiClient.updateMemberWithImage(member.id, {
+          ...formData,
+          age: age || 0,
+          weight: weightValue,
+          height: heightValue,
+          planAmount: formData.planAmount,
+          paidAmount: formData.paidAmount,
+        }, profileImage);
+        toast({
+          title: 'Member Updated!',
+          description: 'Member has been updated successfully.',
+        });
+      } else {
+        await apiClient.createMemberWithImage({
+          ...formData,
+          age: age || 0,
+          weight: weightValue,
+          height: heightValue,
+          planAmount: formData.planAmount,
+          paidAmount: formData.paidAmount,
+        }, profileImage);
+        toast({
+          title: 'Member Added!',
+          description: 'New member has been registered successfully.',
+        });
+      }
       onClose();
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to register member',
+        description: error.message || `Failed to ${isEditMode ? 'update' : 'register'} member`,
         variant: 'destructive',
       });
     }
@@ -481,8 +656,13 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Profile Image Upload - Full Width */}
       <ImageUpload
-        value={profileImage}
-        onChange={setProfileImage}
+        value={profileImage || existingImageUrl || null}
+        onChange={(file) => {
+          setProfileImage(file);
+          if (file) {
+            setExistingImageUrl(null);
+          }
+        }}
         label="Profile Picture"
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -493,7 +673,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
             placeholder="MG005"
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -503,7 +682,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             placeholder="John Doe"
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -513,7 +691,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             value={dob}
             onChange={(e) => handleDobChange(e.target.value)}
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -527,7 +704,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
             placeholder="9876543210"
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -584,7 +760,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             placeholder="123 Main Street"
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -595,9 +770,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
             placeholder="70"
             className="bg-input"
-            required
-            min="0.01"
-            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -608,9 +780,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, height: e.target.value })}
             placeholder="175"
             className="bg-input"
-            required
-            min="0.01"
-            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -651,7 +820,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
               }
             }}
             className="bg-input"
-            required
           />
         </div>
         <div className="space-y-2">
@@ -671,9 +839,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, planAmount: parseFloat(e.target.value) || 0 })}
             placeholder="2500"
             className="bg-input"
-            required
-            min="0.01"
-            step="0.01"
           />
         </div>
         <div className="space-y-2">
@@ -684,9 +849,6 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
             onChange={(e) => setFormData({ ...formData, paidAmount: parseFloat(e.target.value) || 0 })}
             placeholder="2500"
             className="bg-input"
-            required
-            min="0.01"
-            step="0.01"
           />
         </div>
       </div>
@@ -696,7 +858,91 @@ function MemberForm({ onClose, branches, plans }: { onClose: () => void; branche
           Cancel
         </Button>
         <Button type="submit" className="btn-matrix">
-          Register Member
+          {isEditMode ? 'Update Member' : 'Register Member'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; plans: any[]; onClose: () => void; onRenew: (planId: string, durationMonths: number) => void }) {
+  const [selectedPlanId, setSelectedPlanId] = useState(member.planId || '');
+  const [durationMonths, setDurationMonths] = useState(1);
+  const { toast } = useToast();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedPlanId) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select a plan',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (durationMonths <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Duration must be greater than zero',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onRenew(selectedPlanId, durationMonths);
+  };
+
+  const selectedPlan = plans.find(p => p.id === selectedPlanId);
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Member</Label>
+        <Input value={member.fullName} readOnly className="bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <Label>Select Plan</Label>
+        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+          <SelectTrigger className="bg-input">
+            <SelectValue placeholder="Select plan" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover border-border">
+            {plans.map((plan) => (
+              <SelectItem key={plan.id} value={plan.id}>
+                {plan.name} - ₹{plan.amount.toLocaleString()} ({plan.duration} months)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Duration (Months)</Label>
+        <Input
+          type="number"
+          value={durationMonths}
+          onChange={(e) => setDurationMonths(parseInt(e.target.value) || 1)}
+          min="1"
+          className="bg-input"
+        />
+      </div>
+      {selectedPlan && (
+        <div className="p-3 bg-muted rounded-lg">
+          <p className="text-sm text-muted-foreground">
+            Plan: <span className="font-semibold text-foreground">{selectedPlan.name}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Amount: <span className="font-semibold text-foreground">₹{selectedPlan.amount.toLocaleString()}</span>
+          </p>
+        </div>
+      )}
+      <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" className="btn-matrix">
+          Renew Membership
         </Button>
       </div>
     </form>

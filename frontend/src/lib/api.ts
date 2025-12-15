@@ -255,6 +255,76 @@ class ApiClient {
     });
   }
 
+  async updateMemberWithImage(id: string, memberData: any, profileImage: File | null) {
+    const url = `${this.baseURL}/members/${id}`;
+    const formData = new FormData();
+    
+    // Append all member data as JSON string
+    Object.keys(memberData).forEach((key) => {
+      const value = memberData[key];
+      if (value !== null && value !== undefined) {
+        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    });
+    
+    // Append profile image if provided
+    if (profileImage) {
+      formData.append('profileImage', profileImage);
+    }
+
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers,
+        body: formData,
+      });
+
+      if (response.status === 401) {
+        const refreshed = await this.refreshAccessToken();
+        if (refreshed) {
+          headers['Authorization'] = `Bearer ${this.accessToken}`;
+          const retryResponse = await fetch(url, {
+            method: 'PUT',
+            headers,
+            body: formData,
+          });
+          if (!retryResponse.ok) {
+            const error = await retryResponse.json().catch(() => ({ error: 'Request failed' }));
+            throw new Error(error.error || `HTTP error! status: ${retryResponse.status}`);
+          }
+          return retryResponse.json();
+        } else {
+          this.setAccessToken(null);
+          this.setRefreshToken(null);
+          window.location.href = '/login';
+          throw new Error('Session expired');
+        }
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
+    }
+  }
+
+  async renewMember(id: string, planId: string, durationMonths: number) {
+    return this.request(`/members/${id}/renew`, {
+      method: 'POST',
+      body: JSON.stringify({ planId, durationMonths }),
+    });
+  }
+
   async deleteMember(id: string) {
     return this.request(`/members/${id}`, {
       method: 'DELETE',

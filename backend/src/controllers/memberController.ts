@@ -109,7 +109,24 @@ export const updateMember = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const member = await memberService.updateMember(id, req.body);
+    const memberData: any = { ...req.body };
+    
+    // Handle profile image if uploaded
+    if ((req as any).file) {
+      memberData.profileImage = `/uploads/profiles/${(req as any).file.filename}`;
+    }
+    
+    // Parse numeric fields
+    if (memberData.age) memberData.age = parseInt(memberData.age);
+    if (memberData.weight) memberData.weight = parseFloat(memberData.weight);
+    if (memberData.height) memberData.height = parseFloat(memberData.height);
+    if (memberData.planAmount) memberData.planAmount = parseFloat(memberData.planAmount);
+    if (memberData.paidAmount) memberData.paidAmount = parseFloat(memberData.paidAmount);
+    if (memberData.isActive !== undefined) {
+      memberData.isActive = memberData.isActive === 'true' || memberData.isActive === true;
+    }
+    
+    const member = await memberService.updateMember(id, memberData);
     res.json(member);
   } catch (error) {
     logger.error('Update member error:', error);
@@ -128,6 +145,28 @@ export const deleteMember = async (
     res.json({ message: 'Member deactivated successfully' });
   } catch (error) {
     logger.error('Delete member error:', error);
+    next(error);
+  }
+};
+
+export const renewMember = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { planId, durationMonths } = req.body;
+    
+    if (!planId || !durationMonths) {
+      res.status(400).json({ error: 'Plan ID and duration in months are required' });
+      return;
+    }
+
+    const member = await memberService.renewMember(id, planId, parseInt(durationMonths));
+    res.json(member);
+  } catch (error) {
+    logger.error('Renew member error:', error);
     next(error);
   }
 };
