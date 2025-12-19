@@ -493,15 +493,7 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation: All fields required except profile image
-    if (!formData.registrationNo || formData.registrationNo.trim() === '') {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter registration number',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // Registration number is optional - will be auto-generated if not provided
 
     if (!formData.fullName || formData.fullName.trim() === '') {
       toast({
@@ -525,6 +517,16 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
       toast({
         title: 'Validation Error',
         description: 'Please enter phone number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validation: Phone number must be exactly 10 digits
+    if (formData.phoneNumber.length !== 10) {
+      toast({
+        title: 'Validation Error',
+        description: 'Phone number must be exactly 10 digits',
         variant: 'destructive',
       });
       return;
@@ -614,6 +616,16 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
       return;
     }
 
+    // Validation: Paid amount should not exceed plan amount
+    if (formData.paidAmount > formData.planAmount) {
+      toast({
+        title: 'Validation Error',
+        description: 'Paid amount cannot be greater than plan amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       if (isEditMode && member) {
         await apiClient.updateMemberWithImage(member.id, {
@@ -629,14 +641,45 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
           description: 'Member has been updated successfully.',
         });
       } else {
-        await apiClient.createMemberWithImage({
+        // Check if registration number already exists before creating
+        if (formData.registrationNo && formData.registrationNo.trim()) {
+          try {
+            const existingMember = await apiClient.getMemberByRegistrationNo(formData.registrationNo.trim().toUpperCase());
+            if (existingMember) {
+              toast({
+                title: 'Registration Number Already Exists',
+                description: 'This registration number is already in use. Please use a different one.',
+                variant: 'destructive',
+              });
+              return;
+            }
+          } catch (error: any) {
+            // If error is not "not found", it might be a network error - proceed with creation
+            // The backend will also check and throw an error if it exists
+            if (error.message && error.message.includes('not found')) {
+              // Member doesn't exist, proceed
+            } else {
+              // Some other error, let backend handle it
+            }
+          }
+        }
+
+        // Prepare member data - only include registrationNo if provided
+        const memberDataToSend: any = {
           ...formData,
           age: age || 0,
           weight: weightValue,
           height: heightValue,
           planAmount: formData.planAmount,
           paidAmount: formData.paidAmount,
-        }, profileImage);
+        };
+        
+        // Only include registrationNo if it's provided and not empty
+        if (formData.registrationNo && formData.registrationNo.trim()) {
+          memberDataToSend.registrationNo = formData.registrationNo.trim().toUpperCase();
+        }
+
+        await apiClient.createMemberWithImage(memberDataToSend, profileImage);
         toast({
           title: 'Member Added!',
           description: 'New member has been registered successfully.',
@@ -644,11 +687,20 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
       }
       onClose();
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || `Failed to ${isEditMode ? 'update' : 'register'} member`,
-        variant: 'destructive',
-      });
+      // Check if error is about registration number already existing
+      if (error.message && error.message.toLowerCase().includes('registration number already exists')) {
+        toast({
+          title: 'Registration Number Already Exists',
+          description: 'This registration number is already in use. Please use a different one.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || `Failed to ${isEditMode ? 'update' : 'register'} member`,
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -667,13 +719,19 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
       />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Registration No</Label>
+          <Label>Registration No {!isEditMode && <span className="text-muted-foreground text-xs">(Optional)</span>}</Label>
           <Input
             value={formData.registrationNo}
-            onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value.toUpperCase() })}
             placeholder="MG005"
             className="bg-input"
+            disabled={isEditMode}
           />
+          {!isEditMode && (
+            <p className="text-xs text-muted-foreground">
+              Enter a unique registration number or leave empty to auto-generate
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Full Name</Label>
@@ -701,9 +759,14 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
           <Label>Phone Number</Label>
           <Input
             value={formData.phoneNumber}
-            onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+            onChange={(e) => {
+              // Only allow digits and limit to 10 digits
+              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              setFormData({ ...formData, phoneNumber: value });
+            }}
             placeholder="9876543210"
             className="bg-input"
+            maxLength={10}
           />
         </div>
         <div className="space-y-2">

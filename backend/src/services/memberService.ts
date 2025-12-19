@@ -85,7 +85,22 @@ export class MemberService {
 
   async createMember(memberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'planName' | 'daysLeft' | 'balanceAmount'>): Promise<Member> {
     const id = uuidv4();
-    const registrationNo = await this.generateRegistrationNo(memberData.branchId);
+    
+    // Use provided registrationNo or generate one
+    let registrationNo = (memberData as any).registrationNo;
+    
+    if (!registrationNo || (typeof registrationNo === 'string' && registrationNo.trim() === '')) {
+      // Generate registration number if not provided
+      registrationNo = await this.generateRegistrationNo(memberData.branchId);
+    } else {
+      // Check if registration number already exists
+      const trimmedRegNo = typeof registrationNo === 'string' ? registrationNo.trim() : String(registrationNo).trim();
+      const existing = await this.getMemberByRegistrationNo(trimmedRegNo);
+      if (existing) {
+        throw new Error('Registration number already exists');
+      }
+      registrationNo = trimmedRegNo;
+    }
 
     await pool.execute(
       `INSERT INTO members (
@@ -95,7 +110,7 @@ export class MemberService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
-        registrationNo,
+        typeof registrationNo === 'string' ? registrationNo.trim() : registrationNo,
         memberData.fullName,
         memberData.dateOfBirth,
         memberData.age,

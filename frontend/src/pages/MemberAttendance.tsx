@@ -35,11 +35,13 @@ export default function MemberAttendance() {
     planEndDate: string;
     daysLeft: number;
     lastInvoice: string;
+    profileImage?: string | null;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentQuote, setCurrentQuote] = useState(0);
+  const [imageError, setImageError] = useState(false);
   const { logout } = useAuth();
   const { toast } = useToast();
 
@@ -79,7 +81,9 @@ export default function MemberAttendance() {
           planEndDate: memberData.planEndDate,
           daysLeft,
           lastInvoice: '#INV-2024-001', // This would come from payment data
+          profileImage: memberData.profileImage || null,
         });
+        setImageError(false); // Reset image error when new member is loaded
       } else {
         toast({
           title: 'Member Not Found',
@@ -269,9 +273,30 @@ export default function MemberAttendance() {
                   className="glass-card p-8 border-2 border-primary/30 backdrop-blur-xl bg-card/90 shadow-2xl mb-6"
                 >
                   <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
-                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                      <User className="w-8 h-8 text-primary" />
-                    </div>
+                    {member.profileImage && !imageError ? (
+                      <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary/30 shadow-lg ring-2 ring-primary/20">
+                        <img
+                          src={(() => {
+                            // If already a full URL, use it as is
+                            if (member.profileImage!.startsWith('http')) {
+                              return member.profileImage!;
+                            }
+                            // Construct full URL from backend base URL
+                            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+                            const baseUrl = apiUrl.replace('/api/v1', '');
+                            // profileImage is stored as /uploads/profiles/filename
+                            return `${baseUrl}${member.profileImage}`;
+                          })()}
+                          alt={member.fullName}
+                          className="w-full h-full object-cover"
+                          onError={() => setImageError(true)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center border-2 border-primary/30">
+                        <User className="w-8 h-8 text-primary" />
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-2xl font-display text-foreground">{member.fullName}</h3>
                       <p className="text-muted-foreground">Reg. No: {member.registrationNo}</p>
