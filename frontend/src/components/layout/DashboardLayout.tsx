@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ThemePicker } from '@/components/ui/theme-picker';
 
 interface NavItem {
   label: string;
@@ -124,8 +125,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="p-4 border-t border-sidebar-border">
+        {/* User Info, Theme Picker & Logout */}
+        <div className="p-4 border-t border-sidebar-border space-y-2">
           <AnimatePresence>
             {isSidebarOpen && (
               <motion.div
@@ -139,6 +140,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </motion.div>
             )}
           </AnimatePresence>
+          
+          {/* Theme Picker */}
+          <ThemePicker isSidebarOpen={isSidebarOpen} />
+          
           <Button
             variant="ghost"
             onClick={logout}
@@ -219,11 +224,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </nav>
-              <div className="p-4 border-t border-sidebar-border">
+              <div className="p-4 border-t border-sidebar-border space-y-2">
                 <div className="mb-4 p-3 bg-sidebar-accent rounded-lg">
                   <p className="text-sm font-semibold">{user?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
                 </div>
+                <ThemePicker />
                 <Button
                   variant="ghost"
                   onClick={logout}
