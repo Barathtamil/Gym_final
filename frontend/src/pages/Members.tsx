@@ -95,7 +95,18 @@ export default function Members() {
   });
 
   const columns = [
-    { key: 'registrationNo', header: 'Reg. No' },
+    {
+      key: 'registrationNo',
+      header: 'Reg. No',
+      render: (member: Member) => (
+        <a
+          href={`/members/${member.id}`}
+          className="text-primary hover:underline font-semibold cursor-pointer"
+        >
+          {member.registrationNo}
+        </a>
+      ),
+    },
     {
       key: 'fullName',
       header: 'Name',
@@ -504,7 +515,7 @@ export default function Members() {
   );
 }
 
-function MemberForm({ onClose, branches, plans, member }: { onClose: () => void; branches: any[]; plans: any[]; member?: Member | null }) {
+export function MemberForm({ onClose, branches, plans, member }: { onClose: () => void; branches: any[]; plans: any[]; member?: Member | null }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const isEditMode = !!member;
@@ -1069,7 +1080,7 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
   );
 }
 
-function PaymentForm({ member, onClose, onPay }: { member: Member; onClose: () => void; onPay: (amount: number) => void }) {
+export function PaymentForm({ member, onClose, onPay }: { member: Member; onClose: () => void; onPay: (amount: number) => void }) {
   const [amount, setAmount] = useState<number>(0);
   const { toast } = useToast();
 
@@ -1154,7 +1165,7 @@ function PaymentForm({ member, onClose, onPay }: { member: Member; onClose: () =
   );
 }
 
-function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; plans: any[]; onClose: () => void; onRenew: (planId: string, paidAmount: number) => void }) {
+export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; plans: any[]; onClose: () => void; onRenew: (planId: string, paidAmount: number) => void }) {
   const [selectedPlanId, setSelectedPlanId] = useState(member.planId || '');
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const { toast } = useToast();

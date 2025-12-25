@@ -42,7 +42,14 @@ export class MemberService {
     query += ' ORDER BY m.createdAt DESC';
 
     const [rows] = await pool.execute(query, params);
-    return rows as Member[];
+    const members = rows as any[];
+    // Convert DECIMAL amounts to numbers
+    return members.map(member => ({
+      ...member,
+      planAmount: parseFloat(member.planAmount) || 0,
+      paidAmount: parseFloat(member.paidAmount) || 0,
+      balanceAmount: parseFloat(member.balanceAmount) || 0,
+    })) as Member[];
   }
 
   async getMemberById(id: string): Promise<Member | null> {
@@ -60,8 +67,18 @@ export class MemberService {
       [id]
     );
 
-    const members = rows as Member[];
-    return members.length > 0 ? members[0] : null;
+    const members = rows as any[];
+    if (members.length === 0) {
+      return null;
+    }
+    // Convert DECIMAL amounts to numbers
+    const member = members[0];
+    return {
+      ...member,
+      planAmount: parseFloat(member.planAmount) || 0,
+      paidAmount: parseFloat(member.paidAmount) || 0,
+      balanceAmount: parseFloat(member.balanceAmount) || 0,
+    } as Member;
   }
 
   async getMemberByRegistrationNo(registrationNo: string): Promise<Member | null> {
@@ -79,8 +96,18 @@ export class MemberService {
       [registrationNo]
     );
 
-    const members = rows as Member[];
-    return members.length > 0 ? members[0] : null;
+    const members = rows as any[];
+    if (members.length === 0) {
+      return null;
+    }
+    // Convert DECIMAL amounts to numbers
+    const member = members[0];
+    return {
+      ...member,
+      planAmount: parseFloat(member.planAmount) || 0,
+      paidAmount: parseFloat(member.paidAmount) || 0,
+      balanceAmount: parseFloat(member.balanceAmount) || 0,
+    } as Member;
   }
 
   async createMember(memberData: Omit<Member, 'id' | 'createdAt' | 'updatedAt' | 'planName' | 'daysLeft' | 'balanceAmount'>, createdBy?: string): Promise<Member> {

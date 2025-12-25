@@ -76,8 +76,15 @@ export class PaymentService {
 
   async getPaymentById(id: string): Promise<Payment | null> {
     const [rows] = await pool.execute('SELECT * FROM payment_members WHERE id = ?', [id]);
-    const payments = rows as Payment[];
-    return payments.length > 0 ? payments[0] : null;
+    const payments = rows as any[];
+    if (payments.length === 0) {
+      return null;
+    }
+    // Convert amount from DECIMAL (string) to number
+    return {
+      ...payments[0],
+      amount: parseFloat(payments[0].amount) || 0,
+    } as Payment;
   }
 
   async getPaymentsByMemberId(memberId: string): Promise<Payment[]> {
@@ -85,7 +92,12 @@ export class PaymentService {
       'SELECT * FROM payment_members WHERE memberId = ? ORDER BY paymentDate DESC, createdAt DESC',
       [memberId]
     );
-    return rows as Payment[];
+    const payments = rows as any[];
+    // Convert amount from DECIMAL (string) to number
+    return payments.map(payment => ({
+      ...payment,
+      amount: parseFloat(payment.amount) || 0,
+    })) as Payment[];
   }
 
   async getAllPayments(filters?: {
@@ -114,7 +126,12 @@ export class PaymentService {
     query += ' ORDER BY paymentDate DESC, createdAt DESC';
 
     const [rows] = await pool.execute(query, params);
-    return rows as Payment[];
+    const payments = rows as any[];
+    // Convert amount from DECIMAL (string) to number
+    return payments.map(payment => ({
+      ...payment,
+      amount: parseFloat(payment.amount) || 0,
+    })) as Payment[];
   }
 }
 

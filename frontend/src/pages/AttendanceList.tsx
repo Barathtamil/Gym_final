@@ -89,7 +89,18 @@ export default function AttendanceList() {
   });
 
   const columns = [
-    { key: 'registrationNo', header: 'Reg. No' },
+    {
+      key: 'registrationNo',
+      header: 'Reg. No',
+      render: (record: any) => (
+        <a
+          href={`/members/${record.memberId}`}
+          className="text-primary hover:underline font-semibold cursor-pointer"
+        >
+          {record.registrationNo}
+        </a>
+      ),
+    },
     { key: 'memberName', header: 'Member Name' },
     {
       key: 'batch',

@@ -15,6 +15,7 @@ import Branches from "./pages/Branches";
 import Expenses from "./pages/Expenses";
 import Enquiries from "./pages/Enquiries";
 import MemberAttendance from "./pages/MemberAttendance";
+import MemberView from "./pages/MemberView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to={isAuthenticated ? (user?.role === 'member' ? '/member-attendance' : '/dashboard') : '/login'} replace />} />
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Dashboard /></ProtectedRoute>} />
       <Route path="/members" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Members /></ProtectedRoute>} />
+      <Route path="/members/:id" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><MemberView /></ProtectedRoute>} />
       <Route path="/attendance" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AttendanceList /></ProtectedRoute>} />
       <Route path="/staffs" element={<ProtectedRoute allowedRoles={['admin']}><Staffs /></ProtectedRoute>} />
       <Route path="/plans" element={<ProtectedRoute allowedRoles={['admin']}><Plans /></ProtectedRoute>} />
