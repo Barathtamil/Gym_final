@@ -8,6 +8,7 @@ export interface User {
   branchId: string;
   mobileNumber: string;
   isActive: boolean;
+  deletedAt?: string | null;
 }
 
 export interface Branch {
@@ -16,6 +17,7 @@ export interface Branch {
   location: string;
   createdAt: string;
   createdBy: string;
+  deletedAt?: string | null;
 }
 
 export interface Plan {
@@ -28,6 +30,7 @@ export interface Plan {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  deletedAt?: string | null;
 }
 
 export interface Member {
@@ -40,6 +43,7 @@ export interface Member {
   batch: 'morning' | 'evening';
   branchId: string;
   address: string;
+  aadharNumber?: string | null;
   bloodGroup: string;
   planId: string;
   planName: string;
@@ -54,6 +58,7 @@ export interface Member {
   balanceAmount: number;
   isActive: boolean;
   profileImage?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface Attendance {
@@ -76,6 +81,7 @@ export interface Expense {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  deletedAt?: string | null;
 }
 
 export interface Enquiry {
@@ -86,6 +92,7 @@ export interface Enquiry {
   phoneNumber: string;
   followUpDate: string;
   status: 'pending' | 'contacted' | 'converted' | 'closed';
+  deletedAt?: string | null;
 }
 
 export interface DashboardStats {

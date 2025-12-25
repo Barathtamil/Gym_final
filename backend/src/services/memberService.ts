@@ -19,7 +19,7 @@ export class MemberService {
         (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      WHERE 1=1
+      WHERE m.deletedAt IS NULL
     `;
     const params: any[] = [];
 
@@ -56,7 +56,7 @@ export class MemberService {
         (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      WHERE m.id = ?`,
+      WHERE m.id = ? AND m.deletedAt IS NULL`,
       [id]
     );
 
@@ -75,7 +75,7 @@ export class MemberService {
         (COALESCE(m.planAmount, p.amount, 0) - COALESCE(m.paidAmount, 0)) as balanceAmount
       FROM members m
       LEFT JOIN plans p ON m.planId = p.id
-      WHERE m.registrationNo = ?`,
+      WHERE m.registrationNo = ? AND m.deletedAt IS NULL`,
       [registrationNo]
     );
 
@@ -105,9 +105,9 @@ export class MemberService {
     await pool.execute(
       `INSERT INTO members (
         id, registrationNo, fullName, dateOfBirth, age, phoneNumber, 
-        batch, branchId, address, bloodGroup, planId, weight, height, 
+        batch, branchId, address, aadharNumber, bloodGroup, planId, weight, height, 
         gender, planStartDate, planEndDate, planAmount, paidAmount, isActive, profileImage
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         typeof registrationNo === 'string' ? registrationNo.trim() : registrationNo,
@@ -118,6 +118,7 @@ export class MemberService {
         memberData.batch,
         memberData.branchId,
         memberData.address,
+        (memberData as any).aadharNumber || null,
         memberData.bloodGroup,
         memberData.planId,
         memberData.weight,
@@ -162,11 +163,11 @@ export class MemberService {
   }
 
   async deleteMember(id: string): Promise<void> {
-    await pool.execute('UPDATE members SET isActive = 0 WHERE id = ?', [id]);
-    logger.info(`Member deactivated: ${id}`);
+    await pool.execute('UPDATE members SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Member soft deleted: ${id}`);
   }
 
-  async renewMember(id: string, planId: string, durationMonths: number): Promise<Member> {
+  async renewMember(id: string, planId: string, paidAmount: number): Promise<Member> {
     // Get current member and plan details
     const member = await this.getMemberById(id);
     if (!member) {
@@ -174,37 +175,55 @@ export class MemberService {
     }
 
     // Get plan details
-    const [planRows] = await pool.execute('SELECT * FROM plans WHERE id = ?', [planId]);
+    const [planRows] = await pool.execute('SELECT * FROM plans WHERE id = ? AND deletedAt IS NULL', [planId]);
     const plans = planRows as any[];
     if (plans.length === 0) {
       throw new Error('Plan not found');
     }
 
+    const plan = plans[0];
+
+    // Validate paid amount
+    if (paidAmount > plan.amount) {
+      throw new Error('Paid amount cannot be greater than plan amount');
+    }
+
     // Calculate new end date from current end date (or today if expired)
+    // Plan duration is stored in days (as per schema: duration INT NOT NULL COMMENT 'Duration in days')
     const currentEndDate = new Date(member.planEndDate);
     const today = new Date();
     const startDate = currentEndDate > today ? currentEndDate : today;
     const newEndDate = new Date(startDate);
-    newEndDate.setMonth(newEndDate.getMonth() + durationMonths);
+    // Add the plan duration in days
+    newEndDate.setDate(newEndDate.getDate() + plan.duration);
 
-    // Update member with new plan and dates
+    // Update member with new plan, dates, plan amount, and paid amount
     await pool.execute(
       `UPDATE members 
        SET planId = ?, 
            planStartDate = ?, 
            planEndDate = ?,
+           planAmount = ?,
+           paidAmount = ?,
            isActive = 1
        WHERE id = ?`,
-      [planId, startDate.toISOString().split('T')[0], newEndDate.toISOString().split('T')[0], id]
+      [
+        planId, 
+        startDate.toISOString().split('T')[0], 
+        newEndDate.toISOString().split('T')[0], 
+        plan.amount,
+        paidAmount,
+        id
+      ]
     );
 
-    logger.info(`Member renewed: ${id} with plan ${planId} for ${durationMonths} months`);
+    logger.info(`Member renewed: ${id} with plan ${planId}, paid amount: ${paidAmount}`);
     return this.getMemberById(id) as Promise<Member>;
   }
 
   private async generateRegistrationNo(branchId: string): Promise<string> {
     const [rows] = await pool.execute(
-      'SELECT COUNT(*) as count FROM members WHERE branchId = ?',
+      'SELECT COUNT(*) as count FROM members WHERE branchId = ? AND deletedAt IS NULL',
       [branchId]
     );
     const count = (rows as any[])[0].count;

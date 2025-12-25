@@ -5,7 +5,7 @@ import logger from '../utils/logger.js';
 
 export class ExpenseService {
   async getAllExpenses(filters?: { startDate?: string; endDate?: string }): Promise<Expense[]> {
-    let query = 'SELECT * FROM expenses WHERE 1=1';
+    let query = 'SELECT * FROM expenses WHERE deletedAt IS NULL';
     const params: any[] = [];
 
     if (filters?.startDate) {
@@ -25,7 +25,7 @@ export class ExpenseService {
   }
 
   async getExpenseById(id: string): Promise<Expense | null> {
-    const [rows] = await pool.execute('SELECT * FROM expenses WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM expenses WHERE id = ? AND deletedAt IS NULL', [id]);
     const expenses = rows as Expense[];
     return expenses.length > 0 ? expenses[0] : null;
   }
@@ -83,8 +83,8 @@ export class ExpenseService {
   }
 
   async deleteExpense(id: string): Promise<void> {
-    await pool.execute('DELETE FROM expenses WHERE id = ?', [id]);
-    logger.info(`Expense deleted: ${id}`);
+    await pool.execute('UPDATE expenses SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Expense soft deleted: ${id}`);
   }
 }
 

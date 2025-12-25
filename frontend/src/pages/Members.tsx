@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -259,10 +260,10 @@ export default function Members() {
     setRenewDialogOpen(true);
   };
 
-  const handleRenew = async (planId: string, durationMonths: number) => {
+  const handleRenew = async (planId: string, paidAmount: number) => {
     if (!memberToRenew) return;
     try {
-      await apiClient.renewMember(memberToRenew.id, planId, durationMonths);
+      await apiClient.renewMember(memberToRenew.id, planId, paidAmount);
       toast({
         title: 'Success',
         description: 'Member renewed successfully',
@@ -350,7 +351,7 @@ export default function Members() {
             <SelectContent className="bg-popover border-border">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="inactive">Expired</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2 px-3 py-2 bg-input rounded-lg">
@@ -438,7 +439,26 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
   const [dob, setDob] = useState(member?.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : '');
   const [age, setAge] = useState<number | null>(member?.age || null);
   const [profileImage, setProfileImage] = useState<File | null>(null);
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(member?.profileImage || null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+
+  // Update existingImageUrl when member prop changes
+  useEffect(() => {
+    if (member?.profileImage) {
+      // Construct full URL from backend base URL
+      if (member.profileImage.startsWith('http')) {
+        setExistingImageUrl(member.profileImage);
+      } else {
+        // The profileImage path from backend is already like "/uploads/profiles/filename.jpg"
+        // Just prepend the base URL - no need to manipulate the path
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        const baseUrl = apiUrl.replace('/api/v1', '');
+        setExistingImageUrl(`${baseUrl}${member.profileImage}`);
+      }
+    } else {
+      setExistingImageUrl(null);
+    }
+  }, [member?.profileImage]);
+
   const [formData, setFormData] = useState({
     registrationNo: member?.registrationNo || '',
     fullName: member?.fullName || '',
@@ -447,6 +467,7 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
     batch: (member?.batch || 'morning') as 'morning' | 'evening',
     branchId: member?.branchId || user?.branchId || '',
     address: member?.address || '',
+    aadharNumber: member?.aadharNumber || '',
     bloodGroup: member?.bloodGroup || '',
     planId: member?.planId || '',
     weight: member?.weight?.toString() || '',
@@ -480,7 +501,8 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
     if (plan) {
       const startDate = new Date(formData.planStartDate);
       const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + plan.duration);
+      // Plan duration is stored in days (as per database schema)
+      endDate.setDate(endDate.getDate() + plan.duration);
       setFormData({
         ...formData,
         planId,
@@ -532,13 +554,16 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
       return;
     }
 
-    if (!formData.address || formData.address.trim() === '') {
-      toast({
-        title: 'Validation Error',
-        description: 'Please enter address',
-        variant: 'destructive',
-      });
-      return;
+    // Validate Aadhar number if provided
+    if (formData.aadharNumber && formData.aadharNumber.trim() !== '') {
+      if (formData.aadharNumber.length !== 12) {
+        toast({
+          title: 'Validation Error',
+          description: 'Aadhar number must be exactly 12 digits',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     if (!formData.bloodGroup || formData.bloodGroup.trim() === '') {
@@ -708,11 +733,26 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Profile Image Upload - Full Width */}
       <ImageUpload
-        value={profileImage || existingImageUrl || null}
+        value={profileImage ? profileImage : (existingImageUrl || null)}
         onChange={(file) => {
           setProfileImage(file);
           if (file) {
+            // When a new file is selected, clear the existing image URL
             setExistingImageUrl(null);
+          } else {
+            // When file is removed, restore the existing image URL if it exists
+            if (member?.profileImage) {
+              if (member.profileImage.startsWith('http')) {
+                setExistingImageUrl(member.profileImage);
+              } else {
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+                const baseUrl = apiUrl.replace('/api/v1', '');
+                const imagePath = member.profileImage.startsWith('/') ? member.profileImage : `/${member.profileImage}`;
+                setExistingImageUrl(`${baseUrl}${imagePath}`);
+              }
+            } else {
+              setExistingImageUrl(null);
+            }
           }
         }}
         label="Profile Picture"
@@ -817,13 +857,31 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
           </Select>
         </div>
         <div className="space-y-2 md:col-span-2">
-          <Label>Address</Label>
-          <Input
+          <Label>Address <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+          <Textarea
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            placeholder="123 Main Street"
-            className="bg-input"
+            placeholder="123 Main Street, City, State"
+            className="bg-input min-h-[80px]"
+            rows={3}
           />
+        </div>
+        <div className="space-y-2">
+          <Label>Aadhar Number <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+          <Input
+            value={formData.aadharNumber}
+            onChange={(e) => {
+              // Only allow digits and limit to 12 digits
+              const value = e.target.value.replace(/\D/g, '').slice(0, 12);
+              setFormData({ ...formData, aadharNumber: value });
+            }}
+            placeholder="123456789012"
+            className="bg-input"
+            maxLength={12}
+          />
+          {formData.aadharNumber && formData.aadharNumber.length !== 12 && (
+            <p className="text-xs text-muted-foreground">Aadhar number must be 12 digits</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Weight (kg)</Label>
@@ -871,7 +929,8 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
                 const plan = plans.find((p) => p.id === formData.planId);
                 if (plan) {
                   const endDate = new Date(startDate);
-                  endDate.setMonth(endDate.getMonth() + plan.duration);
+                  // Plan duration is stored in days (as per database schema)
+                  endDate.setDate(endDate.getDate() + plan.duration);
                   setFormData({
                     ...formData,
                     planStartDate: startDate,
@@ -928,9 +987,9 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
   );
 }
 
-function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; plans: any[]; onClose: () => void; onRenew: (planId: string, durationMonths: number) => void }) {
+function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; plans: any[]; onClose: () => void; onRenew: (planId: string, paidAmount: number) => void }) {
   const [selectedPlanId, setSelectedPlanId] = useState(member.planId || '');
-  const [durationMonths, setDurationMonths] = useState(1);
+  const [paidAmount, setPaidAmount] = useState<number>(0);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -945,16 +1004,36 @@ function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; 
       return;
     }
 
-    if (durationMonths <= 0) {
+    const selectedPlan = plans.find(p => p.id === selectedPlanId);
+    if (!selectedPlan) {
       toast({
         title: 'Validation Error',
-        description: 'Duration must be greater than zero',
+        description: 'Selected plan not found',
         variant: 'destructive',
       });
       return;
     }
 
-    onRenew(selectedPlanId, durationMonths);
+    // Validate paid amount
+    if (paidAmount < 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Paid amount cannot be negative',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (paidAmount > selectedPlan.amount) {
+      toast({
+        title: 'Validation Error',
+        description: 'Paid amount cannot be greater than plan amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onRenew(selectedPlanId, paidAmount);
   };
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
@@ -981,14 +1060,24 @@ function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; 
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Duration (Months)</Label>
+        <Label>Paid Amount</Label>
         <Input
           type="number"
-          value={durationMonths}
-          onChange={(e) => setDurationMonths(parseInt(e.target.value) || 1)}
-          min="1"
+          value={paidAmount}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value) || 0;
+            setPaidAmount(value);
+          }}
+          min="0"
+          step="0.01"
+          placeholder="0.00"
           className="bg-input"
         />
+        {selectedPlan && (
+          <p className="text-xs text-muted-foreground">
+            Maximum: ₹{selectedPlan.amount.toLocaleString()}
+          </p>
+        )}
       </div>
       {selectedPlan && (
         <div className="p-3 bg-muted rounded-lg">
@@ -997,6 +1086,9 @@ function RenewMemberForm({ member, plans, onClose, onRenew }: { member: Member; 
           </p>
           <p className="text-sm text-muted-foreground">
             Amount: <span className="font-semibold text-foreground">₹{selectedPlan.amount.toLocaleString()}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Duration: <span className="font-semibold text-foreground">{selectedPlan.duration} {selectedPlan.duration === 1 ? 'month' : 'months'}</span>
           </p>
         </div>
       )}

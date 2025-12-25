@@ -5,7 +5,7 @@ import logger from '../utils/logger.js';
 
 export class EnquiryService {
   async getAllEnquiries(filters?: { status?: string }): Promise<Enquiry[]> {
-    let query = 'SELECT * FROM enquiries WHERE 1=1';
+    let query = 'SELECT * FROM enquiries WHERE deletedAt IS NULL';
     const params: any[] = [];
 
     if (filters?.status) {
@@ -20,7 +20,7 @@ export class EnquiryService {
   }
 
   async getEnquiryById(id: string): Promise<Enquiry | null> {
-    const [rows] = await pool.execute('SELECT * FROM enquiries WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM enquiries WHERE id = ? AND deletedAt IS NULL', [id]);
     const enquiries = rows as Enquiry[];
     return enquiries.length > 0 ? enquiries[0] : null;
   }
@@ -83,8 +83,8 @@ export class EnquiryService {
   }
 
   async deleteEnquiry(id: string): Promise<void> {
-    await pool.execute('DELETE FROM enquiries WHERE id = ?', [id]);
-    logger.info(`Enquiry deleted: ${id}`);
+    await pool.execute('UPDATE enquiries SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Enquiry soft deleted: ${id}`);
   }
 }
 

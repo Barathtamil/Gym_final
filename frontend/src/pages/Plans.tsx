@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Multiselect } from '@/components/ui/multiselect';
 import { useToast } from '@/hooks/use-toast';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Plan } from '@/types';
 import apiClient from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';

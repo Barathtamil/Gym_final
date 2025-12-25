@@ -9,6 +9,7 @@ export class PlanService {
       SELECT p.*, GROUP_CONCAT(pb.branchId) as branches
       FROM plans p
       LEFT JOIN plan_branches pb ON p.id = pb.planId
+      WHERE p.deletedAt IS NULL
       GROUP BY p.id
       ORDER BY p.createdAt DESC
     `);
@@ -25,7 +26,7 @@ export class PlanService {
       `SELECT p.*, GROUP_CONCAT(pb.branchId) as branches
        FROM plans p
        LEFT JOIN plan_branches pb ON p.id = pb.planId
-       WHERE p.id = ?
+       WHERE p.id = ? AND p.deletedAt IS NULL
        GROUP BY p.id`,
       [id]
     );
@@ -103,8 +104,8 @@ export class PlanService {
   }
 
   async deletePlan(id: string): Promise<void> {
-    await pool.execute('DELETE FROM plans WHERE id = ?', [id]);
-    logger.info(`Plan deleted: ${id}`);
+    await pool.execute('UPDATE plans SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Plan soft deleted: ${id}`);
   }
 }
 

@@ -32,7 +32,17 @@ export function ImageUpload({
       };
       reader.readAsDataURL(value);
     } else if (typeof value === "string" && value) {
-      setPreview(value);
+      // If it's already a full URL (http/https) or data URL, use it as is
+      if (value.startsWith('http') || value.startsWith('data:')) {
+        setPreview(value);
+      } else {
+        // Otherwise, construct the full URL from backend
+        // The value is already a path like "/uploads/profiles/filename.jpg"
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        const baseUrl = apiUrl.replace('/api/v1', '');
+        // Use the path as-is since backend already provides the full path starting with /
+        setPreview(`${baseUrl}${value}`);
+      }
     } else {
       setPreview(null);
     }

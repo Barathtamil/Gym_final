@@ -6,7 +6,7 @@ import logger from '../utils/logger.js';
 
 export class StaffService {
   async getAllStaff(branchId?: string): Promise<User[]> {
-    let query = "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt FROM users WHERE role IN ('admin', 'staff')";
+    let query = "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt, deletedAt FROM users WHERE role IN ('admin', 'staff') AND deletedAt IS NULL";
     const params: any[] = [];
 
     if (branchId) {
@@ -22,7 +22,7 @@ export class StaffService {
 
   async getStaffById(id: string): Promise<User | null> {
     const [rows] = await pool.execute(
-      "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt FROM users WHERE id = ? AND role IN ('admin', 'staff')",
+      "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt, deletedAt FROM users WHERE id = ? AND role IN ('admin', 'staff') AND deletedAt IS NULL",
       [id]
     );
 
@@ -130,8 +130,8 @@ export class StaffService {
   }
 
   async deleteStaff(id: string): Promise<void> {
-    await pool.execute('UPDATE users SET isActive = 0 WHERE id = ?', [id]);
-    logger.info(`Staff deactivated: ${id}`);
+    await pool.execute('UPDATE users SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Staff soft deleted: ${id}`);
   }
 }
 

@@ -5,12 +5,12 @@ import logger from '../utils/logger.js';
 
 export class BranchService {
   async getAllBranches(): Promise<Branch[]> {
-    const [rows] = await pool.execute('SELECT * FROM branches ORDER BY createdAt DESC');
+    const [rows] = await pool.execute('SELECT * FROM branches WHERE deletedAt IS NULL ORDER BY createdAt DESC');
     return rows as Branch[];
   }
 
   async getBranchById(id: string): Promise<Branch | null> {
-    const [rows] = await pool.execute('SELECT * FROM branches WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT * FROM branches WHERE id = ? AND deletedAt IS NULL', [id]);
     const branches = rows as Branch[];
     return branches.length > 0 ? branches[0] : null;
   }
@@ -49,8 +49,8 @@ export class BranchService {
   }
 
   async deleteBranch(id: string): Promise<void> {
-    await pool.execute('DELETE FROM branches WHERE id = ?', [id]);
-    logger.info(`Branch deleted: ${id}`);
+    await pool.execute('UPDATE branches SET deletedAt = NOW() WHERE id = ?', [id]);
+    logger.info(`Branch soft deleted: ${id}`);
   }
 }
 

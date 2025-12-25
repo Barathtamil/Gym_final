@@ -247,7 +247,7 @@ export default function Staffs() {
     },
     {
       key: 'isActive',
-      header: 'Status',
+      header: 'Active Status',
       render: (staffMember: User) => (
         <StatusBadge variant={staffMember.isActive ? 'success' : 'danger'}>
           {staffMember.isActive ? 'Active' : 'Inactive'}

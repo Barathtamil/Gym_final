@@ -156,14 +156,20 @@ export const renewMember = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { planId, durationMonths } = req.body;
+    const { planId, paidAmount } = req.body;
     
-    if (!planId || !durationMonths) {
-      res.status(400).json({ error: 'Plan ID and duration in months are required' });
+    if (!planId) {
+      res.status(400).json({ error: 'Plan ID is required' });
       return;
     }
 
-    const member = await memberService.renewMember(id, planId, parseInt(durationMonths));
+    const paidAmountNum = paidAmount !== undefined ? parseFloat(paidAmount) : 0;
+    if (paidAmountNum < 0) {
+      res.status(400).json({ error: 'Paid amount cannot be negative' });
+      return;
+    }
+
+    const member = await memberService.renewMember(id, planId, paidAmountNum);
     res.json(member);
   } catch (error) {
     logger.error('Renew member error:', error);
