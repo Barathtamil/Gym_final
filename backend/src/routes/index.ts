@@ -8,6 +8,7 @@ import branchRoutes from './branchRoutes.js';
 import expenseRoutes from './expenseRoutes.js';
 import enquiryRoutes from './enquiryRoutes.js';
 import staffRoutes from './staffRoutes.js';
+import paymentRoutes from './paymentRoutes.js';
 import { upload, uploadLogo, getActiveLogo } from '../controllers/logoController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -22,6 +23,7 @@ router.use('/branches', branchRoutes);
 router.use('/expenses', expenseRoutes);
 router.use('/enquiries', enquiryRoutes);
 router.use('/staff', staffRoutes);
+router.use('/payments', paymentRoutes);
 
 // Logo routes
 router.post('/logo', authenticate, authorize('admin'), upload.single('logo'), uploadLogo);

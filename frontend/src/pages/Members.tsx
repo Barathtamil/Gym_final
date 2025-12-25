@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Download, Edit, Trash2, RefreshCw, Phone, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit, Trash2, RefreshCw, Phone, MapPin, Loader2, DollarSign } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,8 @@ export default function Members() {
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [memberToRenew, setMemberToRenew] = useState<Member | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [memberToPay, setMemberToPay] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -182,6 +184,28 @@ export default function Members() {
                 <p>Delete Member</p>
               </TooltipContent>
             </Tooltip>
+            {(() => {
+              const planAmount = member.planAmount || 0;
+              const paidAmount = member.paidAmount || 0;
+              const balance = planAmount - paidAmount;
+              return balance > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="hover:bg-success/20 hover:text-success"
+                      onClick={() => handlePaymentClick(member)}
+                    >
+                      <DollarSign className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Pay Balance (₹{balance.toLocaleString()})</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })()}
             {member.daysLeft <= 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -275,6 +299,35 @@ export default function Members() {
       toast({
         title: 'Error',
         description: error.message || 'Failed to renew member',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handlePaymentClick = (member: Member) => {
+    setMemberToPay(member);
+    setPaymentDialogOpen(true);
+  };
+
+  const handlePayment = async (amount: number) => {
+    if (!memberToPay) return;
+    try {
+      await apiClient.createPayment({
+        memberId: memberToPay.id,
+        amount,
+        paymentType: 'balance',
+      });
+      toast({
+        title: 'Success',
+        description: 'Payment recorded successfully',
+      });
+      loadMembers();
+      setPaymentDialogOpen(false);
+      setMemberToPay(null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to record payment',
         variant: 'destructive',
       });
     }
@@ -423,6 +476,25 @@ export default function Members() {
                   setMemberToRenew(null);
                 }}
                 onRenew={handleRenew}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Record Payment</DialogTitle>
+            </DialogHeader>
+            {memberToPay && (
+              <PaymentForm
+                member={memberToPay}
+                onClose={() => {
+                  setPaymentDialogOpen(false);
+                  setMemberToPay(null);
+                }}
+                onPay={handlePayment}
               />
             )}
           </DialogContent>
@@ -905,18 +977,26 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
         </div>
         <div className="space-y-2">
           <Label>Plan</Label>
-          <Select value={formData.planId} onValueChange={handlePlanChange}>
-            <SelectTrigger className="bg-input">
-              <SelectValue placeholder="Select plan" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              {plans.map((plan) => (
-                <SelectItem key={plan.id} value={plan.id}>
-                  {plan.name} - ₹{plan.amount.toLocaleString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isEditMode ? (
+            <Input
+              value={plans.find(p => p.id === formData.planId)?.name || 'N/A'}
+              readOnly
+              className="bg-muted"
+            />
+          ) : (
+            <Select value={formData.planId} onValueChange={handlePlanChange}>
+              <SelectTrigger className="bg-input">
+                <SelectValue placeholder="Select plan" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {plans.map((plan) => (
+                  <SelectItem key={plan.id} value={plan.id}>
+                    {plan.name} - ₹{plan.amount.toLocaleString()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Plan Start Date</Label>
@@ -960,7 +1040,8 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
             value={formData.planAmount}
             onChange={(e) => setFormData({ ...formData, planAmount: parseFloat(e.target.value) || 0 })}
             placeholder="2500"
-            className="bg-input"
+            className={isEditMode ? "bg-muted" : "bg-input"}
+            readOnly={isEditMode}
           />
         </div>
         <div className="space-y-2">
@@ -970,7 +1051,8 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
             value={formData.paidAmount}
             onChange={(e) => setFormData({ ...formData, paidAmount: parseFloat(e.target.value) || 0 })}
             placeholder="2500"
-            className="bg-input"
+            className={isEditMode ? "bg-muted" : "bg-input"}
+            readOnly={isEditMode}
           />
         </div>
       </div>
@@ -981,6 +1063,91 @@ function MemberForm({ onClose, branches, plans, member }: { onClose: () => void;
         </Button>
         <Button type="submit" className="btn-matrix">
           {isEditMode ? 'Update Member' : 'Register Member'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function PaymentForm({ member, onClose, onPay }: { member: Member; onClose: () => void; onPay: (amount: number) => void }) {
+  const [amount, setAmount] = useState<number>(0);
+  const { toast } = useToast();
+
+  const planAmount = member.planAmount || 0;
+  const paidAmount = member.paidAmount || 0;
+  const balance = planAmount - paidAmount;
+
+  useEffect(() => {
+    setAmount(balance);
+  }, [balance]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (amount <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Amount must be greater than zero',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (amount > balance) {
+      toast({
+        title: 'Validation Error',
+        description: `Amount cannot exceed balance of ₹${balance.toLocaleString()}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onPay(amount);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Member</Label>
+        <Input value={member.fullName} readOnly className="bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <Label>Plan Amount</Label>
+        <Input value={`₹${planAmount.toLocaleString()}`} readOnly className="bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <Label>Paid Amount</Label>
+        <Input value={`₹${paidAmount.toLocaleString()}`} readOnly className="bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <Label>Balance Amount</Label>
+        <Input value={`₹${balance.toLocaleString()}`} readOnly className="bg-muted" />
+      </div>
+      <div className="space-y-2">
+        <Label>Payment Amount (₹)</Label>
+        <Input
+          type="number"
+          value={amount}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value) || 0;
+            setAmount(value);
+          }}
+          min="0"
+          max={balance}
+          step="0.01"
+          placeholder="0.00"
+          className="bg-input"
+        />
+        <p className="text-xs text-muted-foreground">
+          Maximum: ₹{balance.toLocaleString()}
+        </p>
+      </div>
+      <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" className="btn-matrix">
+          Record Payment
         </Button>
       </div>
     </form>

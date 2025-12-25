@@ -318,10 +318,10 @@ class ApiClient {
     }
   }
 
-  async renewMember(id: string, planId: string, durationMonths: number) {
+  async renewMember(id: string, planId: string, paidAmount: number) {
     return this.request(`/members/${id}/renew`, {
       method: 'POST',
-      body: JSON.stringify({ planId, durationMonths }),
+      body: JSON.stringify({ planId, paidAmount }),
     });
   }
 
@@ -524,6 +524,40 @@ class ApiClient {
   async getDashboardStats(branchId?: string) {
     const query = branchId ? `?branchId=${branchId}` : '';
     return this.request(`/dashboard${query}`);
+  }
+
+  // Payment methods
+  async createPayment(data: {
+    memberId: string;
+    amount: number;
+    paymentDate?: string;
+    paymentMethod?: string;
+    invoiceNo?: string;
+    remark?: string;
+    paymentType?: 'registration' | 'renewal' | 'balance';
+  }) {
+    return this.request('/payments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaymentsByMemberId(memberId: string) {
+    return this.request(`/payments/member/${memberId}`);
+  }
+
+  async getAllPayments(filters?: {
+    memberId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.memberId) params.append('memberId', filters.memberId);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/payments${query}`);
   }
 }
 

@@ -94,7 +94,7 @@ export const createMember = async (
       profileImage: (req as any).file ? `/uploads/profiles/${(req as any).file.filename}` : null,
     };
 
-    const member = await memberService.createMember(memberData);
+    const member = await memberService.createMember(memberData, (req as any).user?.userId);
     res.status(201).json(member);
   } catch (error) {
     logger.error('Create member error:', error);
@@ -169,7 +169,7 @@ export const renewMember = async (
       return;
     }
 
-    const member = await memberService.renewMember(id, planId, paidAmountNum);
+    const member = await memberService.renewMember(id, planId, paidAmountNum, (req as any).user?.userId);
     res.json(member);
   } catch (error) {
     logger.error('Renew member error:', error);

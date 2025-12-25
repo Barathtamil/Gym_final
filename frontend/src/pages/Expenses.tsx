@@ -68,7 +68,10 @@ export default function Expenses() {
     return matchesSearch && matchesDateFrom && matchesDateTo;
   });
 
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => {
+    const amount = typeof e.amount === 'string' ? parseFloat(e.amount) : Number(e.amount) || 0;
+    return sum + amount;
+  }, 0);
 
   const handleCreate = () => {
     setIsEditMode(false);
@@ -357,7 +360,9 @@ export default function Expenses() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground uppercase tracking-wider">Total Expenses</p>
-              <p className="text-4xl font-display text-warning">₹{totalExpenses.toLocaleString()}</p>
+              <p className="text-4xl font-display text-warning">
+                ₹{totalExpenses.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
             </div>
             <div className="w-16 h-16 bg-warning/20 rounded-xl flex items-center justify-center">
               <Receipt className="w-8 h-8 text-warning" />
