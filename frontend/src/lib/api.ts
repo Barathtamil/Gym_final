@@ -8,6 +8,7 @@ interface ApiResponse<T> {
 class ApiClient {
   private baseURL: string;
   private accessToken: string | null = null;
+  private isRedirecting: boolean = false;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -39,6 +40,30 @@ class ApiClient {
     } else {
       localStorage.removeItem('refreshToken');
     }
+  }
+
+  private clearSession() {
+    // Clear all authentication-related data
+    this.setAccessToken(null);
+    this.setRefreshToken(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('matrix_gym_user');
+      // Dispatch event to notify AuthContext to clear user state
+      window.dispatchEvent(new CustomEvent('session-expired'));
+    }
+  }
+
+  private redirectToLogin() {
+    // Prevent multiple simultaneous redirects
+    if (this.isRedirecting) {
+      return;
+    }
+    this.isRedirecting = true;
+    this.clearSession();
+    // Use setTimeout to ensure localStorage is cleared before redirect
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 0);
   }
 
   private async request<T>(
@@ -76,10 +101,8 @@ class ApiClient {
           }
           return retryResponse.json();
         } else {
-          // Redirect to login
-          this.setAccessToken(null);
-          this.setRefreshToken(null);
-          window.location.href = '/login';
+          // Clear session and redirect to login
+          this.redirectToLogin();
           throw new Error('Session expired');
         }
       }
@@ -229,9 +252,8 @@ class ApiClient {
           }
           return retryResponse.json();
         } else {
-          this.setAccessToken(null);
-          this.setRefreshToken(null);
-          window.location.href = '/login';
+          // Clear session and redirect to login
+          this.redirectToLogin();
           throw new Error('Session expired');
         }
       }
@@ -299,9 +321,8 @@ class ApiClient {
           }
           return retryResponse.json();
         } else {
-          this.setAccessToken(null);
-          this.setRefreshToken(null);
-          window.location.href = '/login';
+          // Clear session and redirect to login
+          this.redirectToLogin();
           throw new Error('Session expired');
         }
       }

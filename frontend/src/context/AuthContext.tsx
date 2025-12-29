@@ -18,14 +18,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : null;
   });
 
-  // Verify token on mount
+  // Verify token on mount and listen for session expiration
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken');
     if (accessToken && user) {
       // Token exists, user should be authenticated
       // You could add a verify endpoint call here if needed
     }
-  }, []);
+
+    // Listen for session expiration events from API client
+    const handleSessionExpired = () => {
+      setUser(null);
+      localStorage.removeItem('matrix_gym_user');
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+
+    return () => {
+      window.removeEventListener('session-expired', handleSessionExpired);
+    };
+  }, []); // Empty dependency array - only run on mount
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
