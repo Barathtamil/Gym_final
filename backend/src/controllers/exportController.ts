@@ -253,3 +253,81 @@ export const exportStaff = async (
   }
 };
 
+export const exportStatistics = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const statisticsService = (await import('../services/statisticsService.js')).default;
+    const { year, month, startDate, endDate, branchId } = req.query;
+    
+    const filters: any = {};
+    if (year) filters.year = year as string;
+    if (month) filters.month = month as string;
+    if (startDate) filters.startDate = startDate as string;
+    if (endDate) filters.endDate = endDate as string;
+    if (branchId) filters.branchId = branchId as string;
+
+    const stats = await statisticsService.getStatistics(filters);
+    
+    // Create summary data for export
+    const summaryData = [
+      { 'Metric': 'Total Active Members', 'Value': stats.totalActiveMembers || 0 },
+      { 'Metric': 'Expired Memberships', 'Value': stats.expiredMemberships || 0 },
+      { 'Metric': 'Total Attendance', 'Value': stats.totalAttendance || stats.todayAttendance || 0 },
+      { 'Metric': 'Total Revenue', 'Value': typeof stats.totalRevenue === 'number' ? stats.totalRevenue : (stats.monthlyRevenue || 0) },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    
+    // Summary sheet
+    const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+    
+    // Membership Growth sheet
+    if (stats.membershipGrowth && stats.membershipGrowth.length > 0) {
+      const growthData = stats.membershipGrowth.map((g: any) => ({
+        'Month': g.month || '',
+        'New Members': Number(g.count) || 0,
+      }));
+      const growthSheet = XLSX.utils.json_to_sheet(growthData);
+      XLSX.utils.book_append_sheet(workbook, growthSheet, 'Membership Growth');
+    }
+    
+    // Revenue sheet
+    if (stats.revenueByMonth && stats.revenueByMonth.length > 0) {
+      const revenueData = stats.revenueByMonth.map((r: any) => ({
+        'Month': r.month || '',
+        'Revenue': typeof r.amount === 'number' ? r.amount : parseFloat(r.amount || 0),
+      }));
+      const revenueSheet = XLSX.utils.json_to_sheet(revenueData);
+      XLSX.utils.book_append_sheet(workbook, revenueSheet, 'Revenue');
+    }
+    
+    // Attendance sheet
+    if (stats.attendanceTrend && stats.attendanceTrend.length > 0) {
+      const attendanceData = stats.attendanceTrend.map((a: any) => ({
+        'Date': a.date ? new Date(a.date).toLocaleDateString() : '',
+        'Attendance Count': Number(a.count) || 0,
+      }));
+      const attendanceSheet = XLSX.utils.json_to_sheet(attendanceData);
+      XLSX.utils.book_append_sheet(workbook, attendanceSheet, 'Attendance');
+    }
+    
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const filename = year && month 
+      ? `statistics_${year}_${month}.xlsx`
+      : year 
+      ? `statistics_${year}.xlsx`
+      : `statistics_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.send(buffer);
+  } catch (error) {
+    logger.error('Export statistics error:', error);
+    next(error);
+  }
+};
+

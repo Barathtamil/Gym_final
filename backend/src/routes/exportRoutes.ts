@@ -7,6 +7,7 @@ import {
   exportBranches,
   exportAttendance,
   exportStaff,
+  exportStatistics,
 } from '../controllers/exportController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -19,6 +20,7 @@ router.get('/plans', authenticate, authorize('admin', 'staff'), exportPlans);
 router.get('/branches', authenticate, authorize('admin', 'staff'), exportBranches);
 router.get('/attendance', authenticate, authorize('admin', 'staff'), exportAttendance);
 router.get('/staff', authenticate, authorize('admin', 'staff'), exportStaff);
+router.get('/statistics', authenticate, authorize('admin', 'staff'), exportStatistics);
 
 export default router;
 

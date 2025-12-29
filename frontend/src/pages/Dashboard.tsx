@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Users, UserMinus, CalendarCheck, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KpiCard } from '@/components/ui/kpi-card';
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadDashboard();
@@ -203,7 +205,8 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="glass-card p-6"
+            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+            onClick={() => navigate('/statistics/membership-growth')}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-display tracking-wide">Membership Growth</h3>
@@ -243,7 +246,8 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="glass-card p-6"
+            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+            onClick={() => navigate('/statistics/attendance-trend')}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-display tracking-wide">Attendance Trend</h3>
@@ -280,7 +284,8 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="glass-card p-6"
+            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+            onClick={() => navigate('/statistics/revenue-trend')}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-display tracking-wide">Revenue Trend</h3>
@@ -318,7 +323,8 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="glass-card p-6"
+            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+            onClick={() => navigate('/statistics/membership-status')}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-display tracking-wide">Membership Status</h3>

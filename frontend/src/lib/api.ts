@@ -547,6 +547,41 @@ class ApiClient {
     return this.request(`/dashboard${query}`);
   }
 
+  async getStatistics(filters?: { year?: string; month?: string; startDate?: string; endDate?: string; branchId?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.year) params.append('year', filters.year);
+    if (filters?.month) params.append('month', filters.month);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.branchId) params.append('branchId', filters.branchId);
+    const query = params.toString();
+    return this.request(`/statistics${query ? `?${query}` : ''}`);
+  }
+
+  async exportStatistics(filters?: { year?: string; month?: string; startDate?: string; endDate?: string; branchId?: string }): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters?.year) params.append('year', filters.year);
+    if (filters?.month) params.append('month', filters.month);
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.branchId) params.append('branchId', filters.branchId);
+    const query = params.toString();
+    
+    const url = `${this.baseURL}/export/statistics${query ? `?${query}` : ''}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export statistics');
+    }
+    
+    return response.blob();
+  }
+
   // Payment methods
   async createPayment(data: {
     memberId: string;

@@ -1,5 +1,5 @@
 import pool from '../config/database.js';
-import { DashboardStats } from '../types/index.js';
+import { DashboardStats } from '../types/dashboard.js';
 
 export class DashboardService {
   async getDashboardStats(branchId?: string): Promise<DashboardStats> {
