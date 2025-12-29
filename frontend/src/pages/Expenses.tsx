@@ -254,17 +254,34 @@ export default function Expenses() {
     },
   ];
 
-  const handleExport = () => {
-    toast({
-      title: 'Exporting...',
-      description: 'Your Excel file is being prepared.',
-    });
-    setTimeout(() => {
+  const handleExport = async () => {
+    try {
+      toast({
+        title: 'Exporting...',
+        description: 'Your Excel file is being prepared.',
+      });
+      
+      const blob = await apiClient.exportExpenses({ startDate: dateFrom, endDate: dateTo });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `expenses_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
       toast({
         title: 'Export Complete',
         description: 'Expenses list has been exported successfully.',
       });
-    }, 2000);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to export expenses',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

@@ -655,6 +655,135 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Export endpoints
+  async exportMembers(): Promise<Blob> {
+    const url = `${this.baseURL}/export/members`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export members');
+    }
+    
+    return response.blob();
+  }
+
+  async exportExpenses(filters?: { startDate?: string; endDate?: string }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate);
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate);
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    
+    const url = `${this.baseURL}/export/expenses${query}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export expenses');
+    }
+    
+    return response.blob();
+  }
+
+  async exportEnquiries(filters?: { status?: string }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (filters?.status) queryParams.append('status', filters.status);
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    
+    const url = `${this.baseURL}/export/enquiries${query}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export enquiries');
+    }
+    
+    return response.blob();
+  }
+
+  async exportPlans(): Promise<Blob> {
+    const url = `${this.baseURL}/export/plans`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export plans');
+    }
+    
+    return response.blob();
+  }
+
+  async exportBranches(): Promise<Blob> {
+    const url = `${this.baseURL}/export/branches`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export branches');
+    }
+    
+    return response.blob();
+  }
+
+  async exportAttendance(filters?: { startDate?: string; endDate?: string; branchId?: string }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (filters?.startDate) queryParams.append('startDate', filters.startDate);
+    if (filters?.endDate) queryParams.append('endDate', filters.endDate);
+    if (filters?.branchId) queryParams.append('branchId', filters.branchId);
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    
+    const url = `${this.baseURL}/export/attendance${query}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export attendance');
+    }
+    
+    return response.blob();
+  }
+
+  async exportStaff(branchId?: string): Promise<Blob> {
+    const query = branchId ? `?branchId=${branchId}` : '';
+    const url = `${this.baseURL}/export/staff${query}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to export staff');
+    }
+    
+    return response.blob();
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
