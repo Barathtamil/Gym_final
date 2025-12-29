@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ImageUpload } from '@/components/ui/image-upload';
 import { useToast } from '@/hooks/use-toast';
 import apiClient from '@/lib/api';
+import logo from '@/assets/logo/logo.png';
 
 // Gym rules
 const gymRules = [
@@ -21,12 +22,34 @@ const gymRules = [
 ];
 
 // Motivational quotes
+// const quotes = [
+//   { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
+//   { text: "Your body can stand almost anything. It's your mind you have to convince.", author: "Unknown" },
+//   { text: "The pain you feel today will be the strength you feel tomorrow.", author: "Arnold Schwarzenegger" },
+//   { text: "Don't limit your challenges. Challenge your limits.", author: "Jerry Dunn" },
+// ];
+
 const quotes = [
   { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
   { text: "Your body can stand almost anything. It's your mind you have to convince.", author: "Unknown" },
   { text: "The pain you feel today will be the strength you feel tomorrow.", author: "Arnold Schwarzenegger" },
   { text: "Don't limit your challenges. Challenge your limits.", author: "Jerry Dunn" },
+
+  { text: "Success usually comes to those who are too busy to be looking for it.", author: "Henry David Thoreau" },
+  { text: "No pain, no gain. Shut up and train.", author: "Unknown" },
+  { text: "The hardest lift of all is lifting your butt off the couch.", author: "Unknown" },
+  { text: "Train insane or remain the same.", author: "Jillian Michaels" },
+  { text: "Strength does not come from winning. Your struggles develop your strengths.", author: "Arnold Schwarzenegger" },
+  { text: "The body achieves what the mind believes.", author: "Napoleon Hill" },
+  { text: "You don’t have to be extreme, just consistent.", author: "Unknown" },
+  { text: "Push yourself because no one else is going to do it for you.", author: "Unknown" },
+  { text: "Wake up. Work out. Look hot. Kick ass.", author: "Unknown" },
+  { text: "Sweat is just fat crying.", author: "Unknown" },
+  { text: "A one-hour workout is only 4% of your day. No excuses.", author: "Unknown" },
+  { text: "The difference between try and triumph is a little umph.", author: "Marvin Phillips" },
+  { text: "Fall in love with taking care of your body.", author: "Unknown" },
 ];
+
 
 
 export default function MemberAttendance() {
@@ -407,9 +430,13 @@ export default function MemberAttendance() {
                 <motion.div
                   animate={{ scale: [1, 1.08, 1], rotate: [0, 5, -5, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
-                  className="w-20 h-20 lg:w-24 lg:h-24 bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-primary/40 shadow-lg"
+                  className="w-20 h-20 lg:w-24 lg:h-24 bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-primary/40 shadow-lg p-2"
                 >
-                  <User className="w-10 h-10 lg:w-12 lg:h-12 text-primary" />
+                  <img
+                    src={logo}
+                    alt="Matrix Gym Logo"
+                    className="w-full h-full object-contain"
+                  />
                 </motion.div>
 
                 <motion.h2

@@ -43,6 +43,7 @@ export default function Enquiries() {
     date: new Date().toISOString().split('T')[0],
     followUpDate: '',
     status: 'pending' as 'pending' | 'contacted' | 'converted' | 'closed',
+    remark: '',
   });
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function Enquiries() {
       date: new Date().toISOString().split('T')[0],
       followUpDate: '',
       status: 'pending',
+      remark: '',
     });
     setIsFormOpen(true);
   };
@@ -97,6 +99,7 @@ export default function Enquiries() {
       date: enquiry.date,
       followUpDate: enquiry.followUpDate || '',
       status: enquiry.status,
+      remark: (enquiry as any).remark || '',
     });
     setIsFormOpen(true);
   };
@@ -359,6 +362,16 @@ export default function Enquiries() {
                         className="bg-input"
                       />
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Remark</Label>
+                    <Textarea
+                      value={formData.remark}
+                      onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                      placeholder="Enter any remarks or notes..."
+                      rows={3}
+                      className="bg-input"
+                    />
                   </div>
                   {isEditMode && (
                     <div className="space-y-2">

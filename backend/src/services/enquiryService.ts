@@ -28,7 +28,7 @@ export class EnquiryService {
   async createEnquiry(enquiryData: Omit<Enquiry, 'id' | 'createdAt' | 'updatedAt'>): Promise<Enquiry> {
     const id = uuidv4();
     await pool.execute(
-      'INSERT INTO enquiries (id, name, address, date, phoneNumber, followUpDate, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO enquiries (id, name, address, date, phoneNumber, followUpDate, status, remark) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [
         id,
         enquiryData.name,
@@ -37,6 +37,7 @@ export class EnquiryService {
         enquiryData.phoneNumber,
         enquiryData.followUpDate,
         enquiryData.status || 'pending',
+        enquiryData.remark || null,
       ]
     );
 
@@ -71,6 +72,10 @@ export class EnquiryService {
     if (enquiryData.status) {
       updates.push('status = ?');
       values.push(enquiryData.status);
+    }
+    if (enquiryData.remark !== undefined) {
+      updates.push('remark = ?');
+      values.push(enquiryData.remark);
     }
 
     if (updates.length > 0) {

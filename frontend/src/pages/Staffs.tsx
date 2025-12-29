@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Edit, Trash2, UserPlus, Shield, UserCheck } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, UserPlus, Shield, UserCheck, Filter, ToggleLeft, ToggleRight, User as UserIcon } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import apiClient from '@/lib/api';
@@ -20,6 +21,9 @@ export default function Staffs() {
   const [staff, setStaff] = useState<User[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<User | null>(null);
@@ -34,9 +38,11 @@ export default function Staffs() {
     name: '',
     username: '',
     password: '',
-    role: 'staff' as 'admin' | 'staff',
+    role: 'staff' as 'admin' | 'staff' | 'member',
     branchId: user?.branchId || '',
     mobileNumber: '',
+    aadharNumber: '',
+    address: '',
   });
 
   useEffect(() => {
@@ -74,7 +80,21 @@ export default function Staffs() {
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.mobileNumber?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    
+    const matchesStatus = 
+      statusFilter === 'all' || 
+      (statusFilter === 'active' && s.isActive) ||
+      (statusFilter === 'inactive' && !s.isActive);
+    
+    const matchesRole =
+      roleFilter === 'all' ||
+      s.role === roleFilter;
+    
+    const matchesBranch =
+      branchFilter === 'all' ||
+      s.branchId === branchFilter;
+    
+    return matchesSearch && matchesStatus && matchesRole && matchesBranch;
   });
 
   const handleCreate = () => {
@@ -87,6 +107,8 @@ export default function Staffs() {
       role: 'staff',
       branchId: user?.branchId || '',
       mobileNumber: '',
+      aadharNumber: '',
+      address: '',
     });
     setIsFormOpen(true);
   };
@@ -98,9 +120,11 @@ export default function Staffs() {
       name: staffMember.name,
       username: staffMember.username,
       password: '',
-      role: staffMember.role as 'admin' | 'staff',
+      role: staffMember.role as 'admin' | 'staff' | 'member',
       branchId: staffMember.branchId,
       mobileNumber: staffMember.mobileNumber || '',
+      aadharNumber: (staffMember as any).aadharNumber || '',
+      address: (staffMember as any).address || '',
     });
     setIsFormOpen(true);
   };
@@ -152,6 +176,8 @@ export default function Staffs() {
           role: formData.role,
           branchId: formData.branchId,
           mobileNumber: formData.mobileNumber,
+          aadharNumber: formData.aadharNumber,
+          address: formData.address,
         };
 
         if (formData.password) {
@@ -211,6 +237,24 @@ export default function Staffs() {
     }
   };
 
+  const handleToggleStatus = async (staffMember: User) => {
+    try {
+      const newStatus = !staffMember.isActive;
+      await apiClient.updateStaff(staffMember.id, { isActive: newStatus });
+      toast({
+        title: 'Success',
+        description: `Staff ${newStatus ? 'activated' : 'deactivated'} successfully`,
+      });
+      loadStaff();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update staff status',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const columns = [
     {
       key: 'name',
@@ -220,8 +264,10 @@ export default function Staffs() {
           <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
             {staffMember.role === 'admin' ? (
               <Shield className="w-5 h-5 text-primary" />
-            ) : (
+            ) : staffMember.role === 'staff' ? (
               <UserCheck className="w-5 h-5 text-primary" />
+            ) : (
+              <UserIcon className="w-5 h-5 text-primary" />
             )}
           </div>
           <div>
@@ -234,11 +280,25 @@ export default function Staffs() {
     {
       key: 'role',
       header: 'Role',
-      render: (staffMember: User) => (
-        <StatusBadge variant={staffMember.role === 'admin' ? 'info' : 'default'}>
-          {staffMember.role.toUpperCase()}
-        </StatusBadge>
-      ),
+      render: (staffMember: User) => {
+        const variant = 
+          staffMember.role === 'admin' ? 'info' : 
+          staffMember.role === 'staff' ? 'default' : 
+          'warning';
+        return (
+          <StatusBadge variant={variant}>
+            {staffMember.role.toUpperCase()}
+          </StatusBadge>
+        );
+      },
+    },
+    {
+      key: 'branch',
+      header: 'Branch',
+      render: (staffMember: User) => {
+        const branch = branches.find(b => b.id === staffMember.branchId);
+        return branch ? branch.name : '-';
+      },
     },
     {
       key: 'mobileNumber',
@@ -265,6 +325,29 @@ export default function Staffs() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  onClick={() => handleToggleStatus(staffMember)}
+                  className={`h-8 w-8 ${
+                    staffMember.isActive
+                      ? 'hover:bg-warning/20 hover:text-warning'
+                      : 'hover:bg-success/20 hover:text-success'
+                  }`}
+                >
+                  {staffMember.isActive ? (
+                    <ToggleRight className="w-4 h-4" />
+                  ) : (
+                    <ToggleLeft className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{staffMember.isActive ? 'Deactivate' : 'Activate'} Staff</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleEdit(staffMember)}
                   className="h-8 w-8 hover:bg-secondary/20 hover:text-secondary"
                 >
@@ -273,21 +356,6 @@ export default function Staffs() {
               </TooltipTrigger>
               <TooltipContent>
                 <p>Edit Staff</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteClick(staffMember)}
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete Staff</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -354,7 +422,7 @@ export default function Staffs() {
                     <Label htmlFor="role">Role *</Label>
                     <Select
                       value={formData.role}
-                      onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'staff' })}
+                      onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'staff' | 'member' })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -362,6 +430,7 @@ export default function Staffs() {
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -394,6 +463,29 @@ export default function Staffs() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="aadharNumber">Aadhar Number</Label>
+                  <Input
+                    id="aadharNumber"
+                    value={formData.aadharNumber}
+                    onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                    placeholder="12-digit Aadhar number"
+                    maxLength={12}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Enter address..."
+                    rows={3}
+                    className="bg-input"
+                  />
+                </div>
+
                 <div className="flex justify-end gap-2 pt-4">
                   <Button
                     type="button"
@@ -412,8 +504,8 @@ export default function Staffs() {
         </div>
 
         {/* Search and Filters */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search by name, username, or mobile..."
@@ -421,6 +513,43 @@ export default function Staffs() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

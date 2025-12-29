@@ -6,7 +6,7 @@ import logger from '../utils/logger.js';
 
 export class StaffService {
   async getAllStaff(branchId?: string): Promise<User[]> {
-    let query = "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt, deletedAt FROM users WHERE role IN ('admin', 'staff') AND deletedAt IS NULL";
+    let query = "SELECT id, name, username, role, branchId, mobileNumber, aadharNumber, address, isActive, createdAt, updatedAt, deletedAt FROM users WHERE role IN ('admin', 'staff', 'member') AND deletedAt IS NULL";
     const params: any[] = [];
 
     if (branchId) {
@@ -22,7 +22,7 @@ export class StaffService {
 
   async getStaffById(id: string): Promise<User | null> {
     const [rows] = await pool.execute(
-      "SELECT id, name, username, role, branchId, mobileNumber, isActive, createdAt, updatedAt, deletedAt FROM users WHERE id = ? AND role IN ('admin', 'staff') AND deletedAt IS NULL",
+      "SELECT id, name, username, role, branchId, mobileNumber, aadharNumber, address, isActive, createdAt, updatedAt, deletedAt FROM users WHERE id = ? AND role IN ('admin', 'staff', 'member') AND deletedAt IS NULL",
       [id]
     );
 
@@ -34,9 +34,11 @@ export class StaffService {
     name: string;
     username: string;
     password: string;
-    role: 'admin' | 'staff';
+    role: 'admin' | 'staff' | 'member';
     branchId: string;
     mobileNumber?: string;
+    aadharNumber?: string;
+    address?: string;
   }): Promise<Omit<User, 'password'>> {
     // Check if username already exists
     const [existing] = await pool.execute(
@@ -52,7 +54,7 @@ export class StaffService {
     const hashedPassword = await bcrypt.hash(staffData.password, 10);
 
     await pool.execute(
-      'INSERT INTO users (id, name, username, password, role, branchId, mobileNumber, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO users (id, name, username, password, role, branchId, mobileNumber, aadharNumber, address, isActive) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         id,
         staffData.name,
@@ -61,6 +63,8 @@ export class StaffService {
         staffData.role,
         staffData.branchId,
         staffData.mobileNumber || null,
+        staffData.aadharNumber || null,
+        staffData.address || null,
         1,
       ]
     );
@@ -74,9 +78,11 @@ export class StaffService {
     name?: string;
     username?: string;
     password?: string;
-    role?: 'admin' | 'staff';
+    role?: 'admin' | 'staff' | 'member';
     branchId?: string;
     mobileNumber?: string;
+    aadharNumber?: string;
+    address?: string;
     isActive?: boolean;
   }): Promise<Omit<User, 'password'>> {
     const updates: string[] = [];
@@ -114,6 +120,14 @@ export class StaffService {
     if (staffData.mobileNumber !== undefined) {
       updates.push('mobileNumber = ?');
       values.push(staffData.mobileNumber);
+    }
+    if (staffData.aadharNumber !== undefined) {
+      updates.push('aadharNumber = ?');
+      values.push(staffData.aadharNumber);
+    }
+    if (staffData.address !== undefined) {
+      updates.push('address = ?');
+      values.push(staffData.address);
     }
     if (staffData.isActive !== undefined) {
       updates.push('isActive = ?');

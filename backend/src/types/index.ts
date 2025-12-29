@@ -92,6 +92,7 @@ export interface Enquiry {
   phoneNumber: string;
   followUpDate: Date;
   status: 'pending' | 'contacted' | 'converted' | 'closed';
+  remark?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

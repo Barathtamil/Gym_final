@@ -44,15 +44,15 @@ export const createStaff = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, username, password, role, branchId, mobileNumber } = req.body;
+    const { name, username, password, role, branchId, mobileNumber, aadharNumber, address } = req.body;
 
     if (!name || !username || !password || !role || !branchId) {
       res.status(400).json({ error: 'Name, username, password, role, and branchId are required' });
       return;
     }
 
-    if (role !== 'admin' && role !== 'staff') {
-      res.status(400).json({ error: 'Role must be admin or staff' });
+    if (role !== 'admin' && role !== 'staff' && role !== 'member') {
+      res.status(400).json({ error: 'Role must be admin, staff, or member' });
       return;
     }
 
@@ -63,6 +63,8 @@ export const createStaff = async (
       role,
       branchId,
       mobileNumber,
+      aadharNumber,
+      address,
     });
 
     res.status(201).json(staff);
@@ -85,8 +87,8 @@ export const updateStaff = async (
     const { id } = req.params;
     const { role } = req.body;
 
-    if (role && role !== 'admin' && role !== 'staff') {
-      res.status(400).json({ error: 'Role must be admin or staff' });
+    if (role && role !== 'admin' && role !== 'staff' && role !== 'member') {
+      res.status(400).json({ error: 'Role must be admin, staff, or member' });
       return;
     }
 

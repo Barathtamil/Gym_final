@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('admin', 'staff', 'member') NOT NULL,
   branchId VARCHAR(36),
   mobileNumber VARCHAR(20),
+  aadharNumber VARCHAR(20),
+  address TEXT,
   isActive BOOLEAN DEFAULT TRUE,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -139,6 +141,7 @@ CREATE TABLE IF NOT EXISTS enquiries (
   phoneNumber VARCHAR(20),
   followUpDate DATE,
   status ENUM('pending', 'contacted', 'converted', 'closed') DEFAULT 'pending',
+  remark TEXT,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_status (status),
@@ -167,5 +170,30 @@ CREATE TABLE IF NOT EXISTS logo_settings (
   uploadedBy VARCHAR(36),
   uploadedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_isActive (isActive)
+);
+
+-- Pending Member Registrations table
+CREATE TABLE IF NOT EXISTS pending_member_registrations (
+  id VARCHAR(36) PRIMARY KEY,
+  fullName VARCHAR(255) NOT NULL,
+  dateOfBirth DATE NOT NULL,
+  age INT NOT NULL,
+  phoneNumber VARCHAR(20) NOT NULL,
+  batch ENUM('morning', 'evening') NOT NULL,
+  branchId VARCHAR(36) NOT NULL,
+  address TEXT,
+  aadharNumber VARCHAR(20),
+  bloodGroup VARCHAR(10),
+  weight DECIMAL(5, 2),
+  height DECIMAL(5, 2),
+  gender ENUM('male', 'female', 'other') NOT NULL,
+  profileImage VARCHAR(500),
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_status (status),
+  INDEX idx_branchId (branchId),
+  INDEX idx_createdAt (createdAt),
+  FOREIGN KEY (branchId) REFERENCES branches(id)
 );
 
