@@ -226,7 +226,7 @@ export default function Plans() {
       key: 'duration',
       header: 'Duration',
       render: (plan: Plan) => (
-        <span>{plan.duration} {plan.duration === 1 ? 'Month' : 'Months'}</span>
+        <span>{plan.duration} {plan.duration === 1 ? 'Day' : 'Days'}</span>
       ),
     },
     {
@@ -357,12 +357,12 @@ export default function Plans() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Duration (Months)</Label>
+                      <Label>Duration (Days)</Label>
                       <Input
                         type="number"
                         value={formData.duration}
                         onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 1 })}
-                        placeholder="1"
+                        placeholder="30"
                         className="bg-input"
                       />
                     </div>

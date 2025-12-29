@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, LogOut, CheckCircle, Download, User, Calendar, CreditCard, Clock } from 'lucide-react';
+import { Dumbbell, LogOut, CheckCircle, Download, User, Calendar, CreditCard, Clock, UserPlus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { useToast } from '@/hooks/use-toast';
 import apiClient from '@/lib/api';
 
@@ -42,8 +47,23 @@ export default function MemberAttendance() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [currentQuote, setCurrentQuote] = useState(0);
   const [imageError, setImageError] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
   const { logout } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+
+  const loadBranches = async () => {
+    try {
+      const branchesData = await apiClient.getBranches();
+      setBranches(branchesData || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   // Rotate quotes
   useEffect(() => {
@@ -136,9 +156,9 @@ export default function MemberAttendance() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Panel - Gym Info */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 flex-col relative overflow-hidden h-screen">
         {/* Background with gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-background via-primary/5 to-background" />
         
@@ -219,9 +239,9 @@ export default function MemberAttendance() {
       </div>
 
       {/* Right Panel - Attendance Registration */}
-      <div className="flex-1 flex flex-col min-h-screen p-6 lg:p-12 bg-background">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden p-4 lg:p-6 bg-background">
         {/* Header with Logout */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <div className="lg:hidden flex items-center gap-3">
             <Dumbbell className="w-8 h-8 text-primary" />
             <span className="text-2xl font-display">MATRIX GYM</span>
@@ -237,7 +257,7 @@ export default function MemberAttendance() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full">
+        <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full overflow-hidden">
           <AnimatePresence mode="wait">
             {showSuccess ? (
               /* Success Animation */
@@ -272,7 +292,7 @@ export default function MemberAttendance() {
                   animate={{ y: 0 }}
                   className="glass-card p-8 border-2 border-primary/30 backdrop-blur-xl bg-card/90 shadow-2xl mb-6"
                 >
-                  <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
+                  <div className="flex items-center gap-4 mb-4 pb-4 border-b border-border">
                     {member.profileImage && !imageError ? (
                       <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-primary/30 shadow-lg ring-2 ring-primary/20">
                         <img
@@ -303,7 +323,7 @@ export default function MemberAttendance() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                       <CreditCard className="w-5 h-5 text-primary" />
                       <div>
@@ -336,7 +356,7 @@ export default function MemberAttendance() {
 
                   <Button
                     variant="outline"
-                    className="w-full mb-4 hover:bg-secondary/10 hover:border-secondary"
+                    className="w-full mb-3 hover:bg-secondary/10 hover:border-secondary text-sm"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download Last Invoice ({member.lastInvoice})
@@ -346,7 +366,7 @@ export default function MemberAttendance() {
                     <Button
                       onClick={handleMarkAttendance}
                       disabled={isMarking}
-                      className="w-full h-16 btn-matrix text-xl font-display tracking-wider shadow-lg hover:shadow-xl"
+                      className="w-full h-12 btn-matrix text-lg font-display tracking-wider shadow-lg hover:shadow-xl"
                     >
                       {isMarking ? (
                         <motion.div
@@ -370,7 +390,7 @@ export default function MemberAttendance() {
                     setMember(null);
                     setRegistrationNo('');
                   }}
-                  className="w-full text-muted-foreground hover:text-foreground"
+                  className="w-full text-muted-foreground hover:text-foreground text-sm"
                 >
                   ← Back to Registration
                 </Button>
@@ -387,16 +407,16 @@ export default function MemberAttendance() {
                 <motion.div
                   animate={{ scale: [1, 1.08, 1], rotate: [0, 5, -5, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
-                  className="w-28 h-28 bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-8 border-2 border-primary/40 shadow-lg"
+                  className="w-20 h-20 lg:w-24 lg:h-24 bg-primary/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-primary/40 shadow-lg"
                 >
-                  <User className="w-14 h-14 text-primary" />
+                  <User className="w-10 h-10 lg:w-12 lg:h-12 text-primary" />
                 </motion.div>
 
                 <motion.h2
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="text-3xl lg:text-5xl font-display mb-3 text-gradient"
+                  className="text-2xl lg:text-4xl font-display mb-2 text-gradient"
                 >
                   MARK YOUR ATTENDANCE
                 </motion.h2>
@@ -404,12 +424,12 @@ export default function MemberAttendance() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-muted-foreground mb-10 text-lg"
+                  className="text-muted-foreground mb-6 text-base"
                 >
                   Enter your registration number to check in
                 </motion.p>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -421,7 +441,7 @@ export default function MemberAttendance() {
                       onChange={(e) => setRegistrationNo(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                       placeholder="e.g., MG001"
-                      className="h-20 lg:h-24 text-2xl lg:text-3xl text-center font-mono bg-input/80 backdrop-blur-sm border-2 border-border focus:border-primary input-glow uppercase tracking-widest shadow-lg"
+                      className="h-16 lg:h-20 text-xl lg:text-2xl text-center font-mono bg-input/80 backdrop-blur-sm border-2 border-border focus:border-primary input-glow uppercase tracking-widest shadow-lg"
                     />
                   </motion.div>
 
@@ -435,7 +455,7 @@ export default function MemberAttendance() {
                     <Button
                       onClick={handleSearch}
                       disabled={isLoading}
-                      className="w-full h-14 btn-matrix text-lg font-display tracking-wider shadow-lg hover:shadow-xl"
+                      className="w-full h-12 btn-matrix text-base font-display tracking-wider shadow-lg hover:shadow-xl"
                     >
                       {isLoading ? (
                         <motion.div
@@ -458,16 +478,392 @@ export default function MemberAttendance() {
                 >
                   Try: <span className="text-primary font-mono">MG001</span> or any 3+ character code
                 </motion.p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="mt-8 pt-8 border-t border-border"
+                >
+                  <Button
+                    onClick={() => setIsRegistrationOpen(true)}
+                    variant="outline"
+                    className="w-full hover:bg-primary/10 hover:text-primary hover:border-primary"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    New Member Registration
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Not a member yet? Register here for approval
+                  </p>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {/* Footer */}
-        <div className="text-center text-xs text-muted-foreground mt-8">
+        <div className="text-center text-xs text-muted-foreground mt-4 flex-shrink-0">
           <p>© 2024 Matrix GYM. All rights reserved.</p>
         </div>
       </div>
+
+      {/* Registration Dialog */}
+      <Dialog open={isRegistrationOpen} onOpenChange={setIsRegistrationOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-display">NEW MEMBER REGISTRATION</DialogTitle>
+          </DialogHeader>
+          <PendingMemberRegistrationForm
+            branches={branches}
+            onClose={() => {
+              setIsRegistrationOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// Pending Member Registration Form Component
+function PendingMemberRegistrationForm({ branches, onClose }: { branches: any[]; onClose: () => void }) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dob, setDob] = useState('');
+  const [age, setAge] = useState<number | null>(null);
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+
+  const [formData, setFormData] = useState({
+    fullName: '',
+    dateOfBirth: '',
+    phoneNumber: '',
+    batch: 'morning' as 'morning' | 'evening',
+    branchId: branches[0]?.id || '',
+    address: '',
+    aadharNumber: '',
+    bloodGroup: '',
+    weight: '',
+    height: '',
+    gender: 'male' as 'male' | 'female' | 'other',
+  });
+
+  const handleDobChange = (value: string) => {
+    setDob(value);
+    setFormData({ ...formData, dateOfBirth: value });
+    if (value) {
+      const birthDate = new Date(value);
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+      setAge(calculatedAge);
+    } else {
+      setAge(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.fullName || formData.fullName.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter full name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select date of birth',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.phoneNumber || formData.phoneNumber.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter phone number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formData.phoneNumber.length !== 10) {
+      toast({
+        title: 'Validation Error',
+        description: 'Phone number must be exactly 10 digits',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formData.aadharNumber && formData.aadharNumber.trim() !== '' && formData.aadharNumber.length !== 12) {
+      toast({
+        title: 'Validation Error',
+        description: 'Aadhar number must be exactly 12 digits',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.bloodGroup || formData.bloodGroup.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select blood group',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.branchId) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select branch',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const weightValue = formData.weight ? parseFloat(formData.weight) : null;
+    const heightValue = formData.height ? parseFloat(formData.height) : null;
+
+    if (!formData.weight || !weightValue || weightValue <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid weight (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.height || !heightValue || heightValue <= 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please enter a valid height (greater than zero)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await apiClient.createPendingRegistration(
+        {
+          ...formData,
+          age: age || 0,
+          weight: weightValue,
+          height: heightValue,
+        },
+        profileImage
+      );
+
+      toast({
+        title: 'Registration Submitted!',
+        description: 'Your registration has been submitted for approval.',
+      });
+
+      // Reset form
+      setFormData({
+        fullName: '',
+        dateOfBirth: '',
+        phoneNumber: '',
+        batch: 'morning',
+        branchId: branches[0]?.id || '',
+        address: '',
+        aadharNumber: '',
+        bloodGroup: '',
+        weight: '',
+        height: '',
+        gender: 'male',
+      });
+      setDob('');
+      setAge(null);
+      setProfileImage(null);
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit registration',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Full Name *</Label>
+          <Input
+            value={formData.fullName}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            placeholder="John Doe"
+            className="bg-input"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Date of Birth *</Label>
+          <Input
+            type="date"
+            value={dob}
+            onChange={(e) => handleDobChange(e.target.value)}
+            className="bg-input"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Age (Auto-calculated)</Label>
+          <Input value={age !== null ? `${age} years` : ''} readOnly className="bg-muted" />
+        </div>
+        <div className="space-y-2">
+          <Label>Phone Number *</Label>
+          <Input
+            value={formData.phoneNumber}
+            onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+            placeholder="9876543210"
+            className="bg-input"
+            maxLength={10}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Gender *</Label>
+          <Select
+            value={formData.gender}
+            onValueChange={(value) => setFormData({ ...formData, gender: value as 'male' | 'female' | 'other' })}
+          >
+            <SelectTrigger className="bg-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Blood Group *</Label>
+          <Select
+            value={formData.bloodGroup}
+            onValueChange={(value) => setFormData({ ...formData, bloodGroup: value })}
+          >
+            <SelectTrigger className="bg-input">
+              <SelectValue placeholder="Select blood group" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A+">A+</SelectItem>
+              <SelectItem value="A-">A-</SelectItem>
+              <SelectItem value="B+">B+</SelectItem>
+              <SelectItem value="B-">B-</SelectItem>
+              <SelectItem value="AB+">AB+</SelectItem>
+              <SelectItem value="AB-">AB-</SelectItem>
+              <SelectItem value="O+">O+</SelectItem>
+              <SelectItem value="O-">O-</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Batch *</Label>
+          <Select
+            value={formData.batch}
+            onValueChange={(value) => setFormData({ ...formData, batch: value as 'morning' | 'evening' })}
+          >
+            <SelectTrigger className="bg-input">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="morning">Morning</SelectItem>
+              <SelectItem value="evening">Evening</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Branch *</Label>
+          <Select
+            value={formData.branchId}
+            onValueChange={(value) => setFormData({ ...formData, branchId: value })}
+          >
+            <SelectTrigger className="bg-input">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {branches.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Weight (kg) *</Label>
+          <Input
+            type="number"
+            step="0.1"
+            value={formData.weight}
+            onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+            placeholder="70"
+            className="bg-input"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Height (cm) *</Label>
+          <Input
+            type="number"
+            step="0.1"
+            value={formData.height}
+            onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+            placeholder="170"
+            className="bg-input"
+          />
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label>Address</Label>
+          <Textarea
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            placeholder="Enter your address"
+            className="bg-input"
+            rows={3}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Aadhar Number (Optional)</Label>
+          <Input
+            value={formData.aadharNumber}
+            onChange={(e) => setFormData({ ...formData, aadharNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+            placeholder="123456789012"
+            className="bg-input"
+            maxLength={12}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Profile Image (Optional)</Label>
+          <ImageUpload
+            value={profileImage}
+            onChange={setProfileImage}
+            existingImageUrl={null}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" className="btn-matrix" disabled={isSubmitting}>
+          {isSubmitting ? 'Submitting...' : 'Submit Registration'}
+        </Button>
+      </div>
+    </form>
   );
 }

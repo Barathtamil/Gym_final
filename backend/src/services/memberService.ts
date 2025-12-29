@@ -250,9 +250,21 @@ export class MemberService {
 
       const plan = plans[0];
 
-      // Validate paid amount
-      if (paidAmount > plan.amount) {
-        throw new Error('Paid amount cannot be greater than plan amount');
+      // Calculate previous balance (carry forward any unpaid balance)
+      const oldPlanAmount = parseFloat(member.planAmount as any) || 0;
+      const oldPaidAmount = parseFloat(member.paidAmount as any) || 0;
+      const previousBalance = Math.max(0, oldPlanAmount - oldPaidAmount);
+
+      // Calculate new plan amount (new plan amount + previous balance)
+      const newPlanAmount = parseFloat(plan.amount) + previousBalance;
+
+      // Validate paid amount (should be greater than zero and not exceed new plan amount)
+      if (paidAmount <= 0) {
+        throw new Error('Paid amount must be greater than zero');
+      }
+      
+      if (paidAmount > newPlanAmount) {
+        throw new Error(`Paid amount cannot be greater than plan amount (₹${newPlanAmount.toLocaleString()}) including previous balance`);
       }
 
       // Calculate new end date from current end date (or today if expired)
@@ -264,7 +276,7 @@ export class MemberService {
       // Add the plan duration in days
       newEndDate.setDate(newEndDate.getDate() + plan.duration);
 
-      // Update member with new plan, dates, plan amount, and paid amount
+      // Update member with new plan, dates, plan amount (including previous balance), and paid amount
       await connection.execute(
         `UPDATE members 
          SET planId = ?, 
@@ -278,7 +290,7 @@ export class MemberService {
           planId, 
           startDate.toISOString().split('T')[0], 
           newEndDate.toISOString().split('T')[0], 
-          plan.amount,
+          newPlanAmount,
           paidAmount,
           id
         ]

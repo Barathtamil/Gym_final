@@ -1143,8 +1143,6 @@ export function PaymentForm({ member, onClose, onPay }: { member: Member; onClos
             const value = parseFloat(e.target.value) || 0;
             setAmount(value);
           }}
-          min="0"
-          max={balance}
           step="0.01"
           placeholder="0.00"
           className="bg-input"
@@ -1170,6 +1168,11 @@ export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: M
   const [paidAmount, setPaidAmount] = useState<number>(0);
   const { toast } = useToast();
 
+  // Calculate previous balance
+  const oldPlanAmount = typeof member.planAmount === 'string' ? parseFloat(member.planAmount) : (member.planAmount || 0);
+  const oldPaidAmount = typeof member.paidAmount === 'string' ? parseFloat(member.paidAmount) : (member.paidAmount || 0);
+  const previousBalance = Math.max(0, oldPlanAmount - oldPaidAmount);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1192,20 +1195,25 @@ export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: M
       return;
     }
 
+    // Calculate total plan amount (new plan + previous balance)
+    // Ensure plan amount is a number before calculation
+    const planAmount = typeof selectedPlan.amount === 'string' ? parseFloat(selectedPlan.amount) : (selectedPlan.amount || 0);
+    const totalPlanAmount = planAmount + previousBalance;
+
     // Validate paid amount
-    if (paidAmount < 0) {
+    if (paidAmount <= 0) {
       toast({
         title: 'Validation Error',
-        description: 'Paid amount cannot be negative',
+        description: 'Paid amount must be greater than zero',
         variant: 'destructive',
       });
       return;
     }
 
-    if (paidAmount > selectedPlan.amount) {
+    if (paidAmount > totalPlanAmount) {
       toast({
         title: 'Validation Error',
-        description: 'Paid amount cannot be greater than plan amount',
+        description: `Paid amount cannot be greater than total plan amount (₹${totalPlanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) including previous balance`,
         variant: 'destructive',
       });
       return;
@@ -1215,6 +1223,9 @@ export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: M
   };
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
+  // Ensure plan amount is a number before calculation
+  const planAmount = selectedPlan ? (typeof selectedPlan.amount === 'string' ? parseFloat(selectedPlan.amount) : (selectedPlan.amount || 0)) : 0;
+  const totalPlanAmount = planAmount + previousBalance;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -1231,12 +1242,19 @@ export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: M
           <SelectContent className="bg-popover border-border">
             {plans.map((plan) => (
               <SelectItem key={plan.id} value={plan.id}>
-                {plan.name} - ₹{plan.amount.toLocaleString()} ({plan.duration} months)
+                {plan.name} - ₹{plan.amount.toLocaleString()} ({plan.duration} {plan.duration === 1 ? 'day' : 'days'})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+      {previousBalance > 0 && (
+        <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
+          <p className="text-sm font-semibold text-warning mb-1">Previous Balance</p>
+          <p className="text-lg font-bold text-warning">₹{previousBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+          <p className="text-xs text-muted-foreground mt-1">This balance will be added to the new plan amount</p>
+        </div>
+      )}
       <div className="space-y-2">
         <Label>Paid Amount</Label>
         <Input
@@ -1246,27 +1264,34 @@ export function RenewMemberForm({ member, plans, onClose, onRenew }: { member: M
             const value = parseFloat(e.target.value) || 0;
             setPaidAmount(value);
           }}
-          min="0"
           step="0.01"
           placeholder="0.00"
           className="bg-input"
         />
         {selectedPlan && (
           <p className="text-xs text-muted-foreground">
-            Maximum: ₹{selectedPlan.amount.toLocaleString()}
+            Maximum: ₹{totalPlanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Plan: ₹{planAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} {previousBalance > 0 ? `+ Balance: ₹${previousBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : ''})
           </p>
         )}
       </div>
       {selectedPlan && (
-        <div className="p-3 bg-muted rounded-lg">
+        <div className="p-3 bg-muted rounded-lg space-y-1">
           <p className="text-sm text-muted-foreground">
             Plan: <span className="font-semibold text-foreground">{selectedPlan.name}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            Amount: <span className="font-semibold text-foreground">₹{selectedPlan.amount.toLocaleString()}</span>
+            Plan Amount: <span className="font-semibold text-foreground">₹{planAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+          </p>
+          {previousBalance > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Previous Balance: <span className="font-semibold text-warning">₹{previousBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Total Amount: <span className="font-semibold text-foreground">₹{totalPlanAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            Duration: <span className="font-semibold text-foreground">{selectedPlan.duration} {selectedPlan.duration === 1 ? 'month' : 'months'}</span>
+            Duration: <span className="font-semibold text-foreground">{selectedPlan.duration} {selectedPlan.duration === 1 ? 'day' : 'days'}</span>
           </p>
         </div>
       )}

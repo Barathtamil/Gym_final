@@ -580,6 +580,81 @@ class ApiClient {
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/payments${query}`);
   }
+
+  // Pending Member Registration endpoints
+  async getPendingRegistrations(filters?: { status?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/pending-members${query}`);
+  }
+
+  async getPendingRegistrationById(id: string) {
+    return this.request(`/pending-members/${id}`);
+  }
+
+  async createPendingRegistration(registrationData: any, profileImage: File | null) {
+    const url = `${this.baseURL}/pending-members`;
+    const formData = new FormData();
+    
+    // Append all registration data
+    Object.keys(registrationData).forEach((key) => {
+      const value = registrationData[key];
+      if (value !== null && value !== undefined) {
+        formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      }
+    });
+    
+    // Append profile image if provided
+    if (profileImage) {
+      formData.append('profileImage', profileImage);
+    }
+
+    // No auth token needed for public registration
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('API request error:', error);
+      throw error;
+    }
+  }
+
+  async approvePendingRegistration(id: string, approvalData: {
+    planId: string;
+    planStartDate: string;
+    planEndDate: string;
+    planAmount: number;
+    paidAmount: number;
+    registrationNo?: string;
+  }) {
+    return this.request(`/pending-members/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(approvalData),
+    });
+  }
+
+  async rejectPendingRegistration(id: string) {
+    return this.request(`/pending-members/${id}/reject`, {
+      method: 'POST',
+    });
+  }
+
+  async deletePendingRegistration(id: string) {
+    return this.request(`/pending-members/${id}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

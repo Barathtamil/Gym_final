@@ -16,6 +16,7 @@ import Expenses from "./pages/Expenses";
 import Enquiries from "./pages/Enquiries";
 import MemberAttendance from "./pages/MemberAttendance";
 import MemberView from "./pages/MemberView";
+import PendingRegistrations from "./pages/PendingRegistrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/branches" element={<ProtectedRoute allowedRoles={['admin']}><Branches /></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Expenses /></ProtectedRoute>} />
       <Route path="/enquiries" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Enquiries /></ProtectedRoute>} />
+      <Route path="/pending-registrations" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><PendingRegistrations /></ProtectedRoute>} />
       <Route path="/member-attendance" element={<ProtectedRoute allowedRoles={['member']}><MemberAttendance /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
