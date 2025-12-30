@@ -115,6 +115,20 @@ export class MemberService {
     try {
       await connection.beginTransaction();
 
+      // Validate branchId exists
+      if (!memberData.branchId || memberData.branchId.trim() === '') {
+        throw new Error('Branch ID is required');
+      }
+
+      const [branchRows] = await connection.execute(
+        'SELECT id FROM branches WHERE id = ? AND deletedAt IS NULL',
+        [memberData.branchId]
+      );
+      const branches = branchRows as any[];
+      if (branches.length === 0) {
+        throw new Error(`Branch with ID ${memberData.branchId} does not exist`);
+      }
+
       const id = uuidv4();
       
       // Use provided registrationNo or generate one
@@ -334,7 +348,7 @@ export class MemberService {
       [branchId]
     );
     const count = (rows as any[])[0].count;
-    return `MG${String(count + 1).padStart(4, '0')}`;
+    return `${String(count + 1).padStart(4, '0')}`;
   }
 }
 

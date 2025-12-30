@@ -467,7 +467,7 @@ export default function MemberAttendance() {
                       value={registrationNo}
                       onChange={(e) => setRegistrationNo(e.target.value.toUpperCase())}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="e.g., MG001"
+                      placeholder="e.g., 0001"
                       className="h-16 lg:h-20 text-xl lg:text-2xl text-center font-mono bg-input/80 backdrop-blur-sm border-2 border-border focus:border-primary input-glow uppercase tracking-widest shadow-lg"
                     />
                   </motion.div>
@@ -503,7 +503,7 @@ export default function MemberAttendance() {
                   transition={{ delay: 0.6 }}
                   className="text-xs text-muted-foreground mt-6"
                 >
-                  Try: <span className="text-primary font-mono">MG001</span> or any 3+ character code
+                  Try: <span className="text-primary font-mono">0001</span> or any 3+ character code
                 </motion.p>
 
                 <motion.div

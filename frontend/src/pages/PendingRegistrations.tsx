@@ -433,7 +433,7 @@ export default function PendingRegistrations() {
                     <Input
                       value={approvalData.registrationNo}
                       onChange={(e) => setApprovalData({ ...approvalData, registrationNo: e.target.value.toUpperCase() })}
-                      placeholder="MG001"
+                      placeholder="0001"
                       className="bg-input"
                     />
                   </div>

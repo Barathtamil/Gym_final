@@ -52,7 +52,7 @@ export default function Members() {
     try {
       setIsLoading(true);
       const data = await apiClient.getMembers({ branchId: user?.branchId });
-      setMembers(data || []);
+      setMembers((data as Member[]) || []);
     } catch (error) {
       toast({
         title: 'Error',
@@ -67,7 +67,7 @@ export default function Members() {
   const loadBranches = async () => {
     try {
       const data = await apiClient.getBranches();
-      setBranches(data || []);
+      setBranches((data as any[]) || []);
     } catch (error) {
       console.error('Failed to load branches:', error);
     }
@@ -76,7 +76,7 @@ export default function Members() {
   const loadPlans = async () => {
     try {
       const data = await apiClient.getPlans();
-      setPlans(data || []);
+      setPlans((data as any[]) || []);
     } catch (error) {
       console.error('Failed to load plans:', error);
     }
@@ -85,11 +85,21 @@ export default function Members() {
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
       member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.registrationNo.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === 'all' ||
-      (statusFilter === 'active' && member.isActive) ||
-      (statusFilter === 'inactive' && !member.isActive);
+      member.registrationNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.phoneNumber && member.phoneNumber.includes(searchQuery));
+    
+    // Filter by status using daysLeft to match the "Days Left" column display
+    // daysLeft <= 0 means expired, daysLeft > 0 means active
+    let matchesStatus = true;
+    if (statusFilter === 'active') {
+      // Active: show members with daysLeft > 0 (non-expired)
+      matchesStatus = member.daysLeft > 0;
+    } else if (statusFilter === 'inactive') {
+      // Inactive/Expired: show members with daysLeft <= 0 (expired)
+      matchesStatus = member.daysLeft <= 0;
+    }
+    // If statusFilter === 'all', matchesStatus remains true
+    
     const matchesBalance = !pendingBalanceOnly || member.balanceAmount > 0;
     return matchesSearch && matchesStatus && matchesBalance;
   });
@@ -675,6 +685,15 @@ export function MemberForm({ onClose, branches, plans, member }: { onClose: () =
       return;
     }
 
+    if (!formData.branchId || formData.branchId.trim() === '') {
+      toast({
+        title: 'Validation Error',
+        description: 'Please select branch',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!formData.planId || formData.planId.trim() === '') {
       toast({
         title: 'Validation Error',
@@ -863,7 +882,7 @@ export function MemberForm({ onClose, branches, plans, member }: { onClose: () =
           <Input
             value={formData.registrationNo}
             onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value.toUpperCase() })}
-            placeholder="MG005"
+            placeholder="0005"
             className="bg-input"
             disabled={isEditMode}
           />
@@ -871,6 +890,32 @@ export function MemberForm({ onClose, branches, plans, member }: { onClose: () =
             <p className="text-xs text-muted-foreground">
               Enter a unique registration number or leave empty to auto-generate
             </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label>Branch {!isEditMode && <span className="text-destructive">*</span>}</Label>
+          {isEditMode ? (
+            <Input
+              value={branches.find(b => b.id === formData.branchId)?.name || 'N/A'}
+              readOnly
+              className="bg-muted"
+            />
+          ) : (
+            <Select
+              value={formData.branchId}
+              onValueChange={(value) => setFormData({ ...formData, branchId: value })}
+            >
+              <SelectTrigger className="bg-input">
+                <SelectValue placeholder="Select branch" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name} - {branch.location}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
         <div className="space-y-2">

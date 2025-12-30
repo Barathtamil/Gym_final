@@ -71,6 +71,20 @@ export const createMember = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Determine branchId: use provided branchId, or fallback to user's branchId, or require it
+    let branchId = req.body.branchId;
+    const user = (req as any).user;
+    
+    // If branchId is not provided or is empty, use the authenticated user's branchId (for staff/admin)
+    if (!branchId || branchId.trim() === '') {
+      if (user?.branchId) {
+        branchId = user.branchId;
+      } else {
+        res.status(400).json({ error: 'Branch ID is required' });
+        return;
+      }
+    }
+
     // Extract member data from form fields (multer middleware already processed the file)
     const memberData = {
       registrationNo: req.body.registrationNo || undefined,
@@ -79,7 +93,7 @@ export const createMember = async (
       age: parseInt(req.body.age) || 0,
       phoneNumber: req.body.phoneNumber,
       batch: req.body.batch,
-      branchId: req.body.branchId,
+      branchId: branchId,
       address: req.body.address || '',
       bloodGroup: req.body.bloodGroup || '',
       planId: req.body.planId,
@@ -94,7 +108,7 @@ export const createMember = async (
       profileImage: (req as any).file ? `/uploads/profiles/${(req as any).file.filename}` : null,
     };
 
-    const member = await memberService.createMember(memberData, (req as any).user?.userId);
+    const member = await memberService.createMember(memberData, user?.userId);
     res.status(201).json(member);
   } catch (error) {
     logger.error('Create member error:', error);
