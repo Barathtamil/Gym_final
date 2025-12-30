@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserMinus, CalendarCheck, DollarSign, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Users, UserMinus, CalendarCheck, DollarSign, TrendingUp, TrendingDown, Loader2, Filter, Download } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { KpiCard } from '@/components/ui/kpi-card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   LineChart, 
   Line, 
@@ -44,19 +46,54 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [filterType, setFilterType] = useState<'year' | 'month' | 'range'>('year');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Generate years list (current year and 2 years back)
+  const years = Array.from({ length: 3 }, (_, i) => {
+    const year = new Date().getFullYear() - i;
+    return year.toString();
+  });
+
+  // Generate months list
+  const months = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    // Load statistics on mount and when filters change
+    // Only auto-load for year and month filters, not for date range
+    if (filterType !== 'range') {
+      loadStatistics();
+    } else {
+      // For date range, load default dashboard stats initially
+      if (!dateFrom && !dateTo) {
+        loadDashboard();
+      }
+    }
+  }, [filterType, selectedYear, selectedMonth]);
 
   const loadDashboard = async () => {
     try {
       setIsLoading(true);
       const data = await apiClient.getDashboardStats(user?.branchId);
-      console.log('Dashboard data:', data);
       setStats(data);
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -67,6 +104,82 @@ export default function Dashboard() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadStatistics = async () => {
+    try {
+      setIsLoading(true);
+      let filters: any = {};
+      
+      if (filterType === 'year') {
+        filters.year = selectedYear;
+      } else if (filterType === 'month') {
+        filters.year = selectedYear;
+        filters.month = selectedMonth;
+      } else if (filterType === 'range') {
+        if (dateFrom) filters.startDate = dateFrom;
+        if (dateTo) filters.endDate = dateTo;
+      }
+      if (user?.branchId) filters.branchId = user.branchId;
+      
+      const data = await apiClient.getStatistics(filters);
+      setStats(data);
+    } catch (error) {
+      console.error('Statistics error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load statistics',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      toast({
+        title: 'Exporting...',
+        description: 'Your statistics report is being prepared.',
+      });
+      
+      let filters: any = {};
+      if (filterType === 'year') {
+        filters.year = selectedYear;
+      } else if (filterType === 'month') {
+        filters.year = selectedYear;
+        filters.month = selectedMonth;
+      } else if (filterType === 'range') {
+        if (dateFrom) filters.startDate = dateFrom;
+        if (dateTo) filters.endDate = dateTo;
+      }
+      
+      const blob = await apiClient.exportStatistics(filters);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = filterType === 'year' 
+        ? `statistics_${selectedYear}.xlsx`
+        : filterType === 'month'
+        ? `statistics_${selectedYear}_${selectedMonth}.xlsx`
+        : `statistics_${dateFrom}_to_${dateTo}.xlsx`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Export Complete',
+        description: 'Statistics report has been exported successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to export statistics',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -156,9 +269,111 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
         >
-          <h1 className="text-4xl font-display tracking-wide text-foreground">DASHBOARD</h1>
-          <p className="text-muted-foreground mt-1">Welcome back! Here's your gym overview.</p>
+          <div>
+            <h1 className="text-4xl font-display tracking-wide text-foreground">DASHBOARD</h1>
+            <p className="text-muted-foreground mt-1">Welcome back! Here's your gym overview.</p>
+          </div>
+          <Button onClick={handleExport} variant="outline" className="hover:bg-accent/20">
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </Button>
+        </motion.div>
+
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card p-4"
+        >
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Filter By:</span>
+            </div>
+            <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+              <SelectTrigger className="w-32 bg-input">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="year">Year</SelectItem>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="range">Date Range</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {filterType === 'year' && (
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-32 bg-input">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {filterType === 'month' && (
+              <>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger className="w-32 bg-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-40 bg-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+
+            {filterType === 'range' && (
+              <>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 bg-input border border-border rounded-md text-sm"
+                  placeholder="From Date"
+                />
+                <span className="text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 bg-input border border-border rounded-md text-sm"
+                  placeholder="To Date"
+                />
+                <Button
+                  onClick={loadStatistics}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Apply Filter
+                </Button>
+              </>
+            )}
+          </div>
         </motion.div>
 
         {/* KPI Cards */}

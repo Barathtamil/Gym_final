@@ -15,7 +15,6 @@ import {
   Dumbbell,
   UserCog,
   UserPlus,
-  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -31,7 +30,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'staff'] },
-  { label: 'Statistics', icon: BarChart3, path: '/statistics', roles: ['admin', 'staff'] },
   { label: 'Members', icon: Users, path: '/members', roles: ['admin', 'staff'] },
   { label: 'Pending Registrations', icon: UserPlus, path: '/pending-registrations', roles: ['admin', 'staff'] },
   { label: 'Attendance', icon: CalendarCheck, path: '/attendance', roles: ['admin', 'staff'] },

@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Statistics from "./pages/Statistics";
 import Members from "./pages/Members";
 import AttendanceList from "./pages/AttendanceList";
 import Staffs from "./pages/Staffs";
@@ -48,7 +47,6 @@ function AppRoutes() {
       <Route path="/login" element={isAuthenticated ? <Navigate to={user?.role === 'member' ? '/member-attendance' : '/dashboard'} replace /> : <Login />} />
       <Route path="/" element={<Navigate to={isAuthenticated ? (user?.role === 'member' ? '/member-attendance' : '/dashboard') : '/login'} replace />} />
       <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Dashboard /></ProtectedRoute>} />
-      <Route path="/statistics" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><Statistics /></ProtectedRoute>} />
       <Route path="/statistics/membership-growth" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><MembershipGrowth /></ProtectedRoute>} />
       <Route path="/statistics/attendance-trend" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><AttendanceTrend /></ProtectedRoute>} />
       <Route path="/statistics/revenue-trend" element={<ProtectedRoute allowedRoles={['admin', 'staff']}><RevenueTrend /></ProtectedRoute>} />
