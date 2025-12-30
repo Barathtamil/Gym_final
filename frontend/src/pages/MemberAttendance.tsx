@@ -874,11 +874,10 @@ function PendingMemberRegistrationForm({ branches, onClose }: { branches: any[];
           />
         </div>
         <div className="space-y-2">
-          <Label>Profile Image (Optional)</Label>
           <ImageUpload
             value={profileImage}
             onChange={setProfileImage}
-            existingImageUrl={null}
+            label="Profile Image"
           />
         </div>
       </div>

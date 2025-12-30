@@ -16,11 +16,37 @@ import { Expense } from '@/types';
 import apiClient from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
+// Helper function to get first day of current month
+const getFirstDayOfMonth = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  // Format as YYYY-MM-DD using local date
+  const firstDay = new Date(year, month, 1);
+  const yearStr = firstDay.getFullYear();
+  const monthStr = String(firstDay.getMonth() + 1).padStart(2, '0');
+  const dayStr = String(firstDay.getDate()).padStart(2, '0');
+  return `${yearStr}-${monthStr}-${dayStr}`;
+};
+
+// Helper function to get last day of current month
+const getLastDayOfMonth = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  // Get last day by going to first day of next month and subtracting 1 day
+  const lastDay = new Date(year, month + 1, 0);
+  const yearStr = lastDay.getFullYear();
+  const monthStr = String(lastDay.getMonth() + 1).padStart(2, '0');
+  const dayStr = String(lastDay.getDate()).padStart(2, '0');
+  return `${yearStr}-${monthStr}-${dayStr}`;
+};
+
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFrom, setDateFrom] = useState(getFirstDayOfMonth());
+  const [dateTo, setDateTo] = useState(getLastDayOfMonth());
   const [currentPage, setCurrentPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
