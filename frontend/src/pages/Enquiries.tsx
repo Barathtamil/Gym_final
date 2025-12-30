@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Enquiry } from '@/types';
 import apiClient from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 const statusVariants: Record<string, 'warning' | 'info' | 'success' | 'danger'> = {
   pending: 'warning',
@@ -25,6 +26,7 @@ const statusVariants: Record<string, 'warning' | 'info' | 'success' | 'danger'> 
 
 export default function Enquiries() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,7 +36,9 @@ export default function Enquiries() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [enquiryToDelete, setEnquiryToDelete] = useState<Enquiry | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -47,14 +51,39 @@ export default function Enquiries() {
   });
 
   useEffect(() => {
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     loadEnquiries();
-  }, [statusFilter]);
+  }, [statusFilter, branchFilter]);
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   const loadEnquiries = async () => {
     try {
       setIsLoading(true);
       const filters: any = {};
       if (statusFilter !== 'all') filters.status = statusFilter;
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
       const data = await apiClient.getEnquiries(filters);
       setEnquiries(data || []);
     } catch (error) {
@@ -458,6 +487,19 @@ export default function Enquiries() {
               className="pl-10 bg-input"
             />
           </div>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-full md:w-40 bg-input">
+              <SelectValue placeholder="Branch" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+              {branches.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40 bg-input">
               <SelectValue placeholder="Status" />

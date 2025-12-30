@@ -35,15 +35,16 @@ interface PendingRegistration {
 }
 
 export default function PendingRegistrations() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [registrations, setRegistrations] = useState<PendingRegistration[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
+  const [branchFilter, setBranchFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRegistration, setSelectedRegistration] = useState<PendingRegistration | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   const [approvalData, setApprovalData] = useState({
     planId: '',
@@ -55,14 +56,27 @@ export default function PendingRegistrations() {
   });
 
   useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     loadData();
-  }, []);
+  }, [branchFilter]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
+      const filters: any = { status: 'pending' };
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
       const [registrationsData, plansData, branchesData] = await Promise.all([
-        apiClient.getPendingRegistrations({ status: 'pending' }),
+        apiClient.getPendingRegistrations(filters),
         apiClient.getPlans(),
         apiClient.getBranches(),
       ]);
@@ -298,6 +312,31 @@ export default function PendingRegistrations() {
         >
           <h1 className="text-4xl font-display tracking-wide text-foreground">PENDING REGISTRATIONS</h1>
           <p className="text-muted-foreground mt-1">Review and approve new member registrations</p>
+        </motion.div>
+
+        {/* Branch Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card p-4"
+        >
+          <div className="flex items-center gap-4">
+            <Label className="text-sm font-semibold whitespace-nowrap">Filter by Branch:</Label>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-full md:w-64 bg-input">
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </motion.div>
 
         <Card className="glass-card p-6">

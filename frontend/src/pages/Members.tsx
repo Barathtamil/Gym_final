@@ -41,17 +41,31 @@ export default function Members() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     loadMembers();
     loadBranches();
     loadPlans();
-  }, []);
+  }, [branchFilter]);
 
   const loadMembers = async () => {
     try {
       setIsLoading(true);
-      const data = await apiClient.getMembers({ branchId: user?.branchId });
+      const filters: any = {};
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const data = await apiClient.getMembers(filters);
       setMembers((data as Member[]) || []);
     } catch (error) {
       toast({
@@ -101,7 +115,11 @@ export default function Members() {
     // If statusFilter === 'all', matchesStatus remains true
     
     const matchesBalance = !pendingBalanceOnly || member.balanceAmount > 0;
-    return matchesSearch && matchesStatus && matchesBalance;
+    
+    // Branch filter is handled by API, but we keep it here for consistency
+    const matchesBranch = !branchFilter || branchFilter === 'all' || member.branchId === branchFilter;
+    
+    return matchesSearch && matchesStatus && matchesBalance && matchesBranch;
   });
 
   const columns = [
@@ -435,6 +453,19 @@ export default function Members() {
               className="pl-10 bg-input"
             />
           </div>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-full md:w-40 bg-input">
+              <SelectValue placeholder="Branch" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+              {branches.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full md:w-40 bg-input">
               <SelectValue placeholder="Status" />

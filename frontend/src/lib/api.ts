@@ -394,9 +394,11 @@ class ApiClient {
   }
 
   // Staff endpoints
-  async getStaff(branchId?: string) {
-    const query = branchId ? `?branchId=${branchId}` : '';
-    return this.request(`/staff${query}`);
+  async getStaff(filters?: { branchId?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.branchId) params.append('branchId', filters.branchId);
+    const query = params.toString();
+    return this.request(`/staff${query ? `?${query}` : ''}`);
   }
 
   async getStaffById(id: string) {
@@ -482,10 +484,11 @@ class ApiClient {
   }
 
   // Expense endpoints
-  async getExpenses(filters?: { startDate?: string; endDate?: string }) {
+  async getExpenses(filters?: { startDate?: string; endDate?: string; branchId?: string }) {
     const params = new URLSearchParams();
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.branchId) params.append('branchId', filters.branchId);
 
     const query = params.toString();
     return this.request(`/expenses${query ? `?${query}` : ''}`);
@@ -516,9 +519,10 @@ class ApiClient {
   }
 
   // Enquiry endpoints
-  async getEnquiries(filters?: { status?: string }) {
+  async getEnquiries(filters?: { status?: string; branchId?: string }) {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.branchId) params.append('branchId', filters.branchId);
 
     const query = params.toString();
     return this.request(`/enquiries${query ? `?${query}` : ''}`);
@@ -624,9 +628,10 @@ class ApiClient {
   }
 
   // Pending Member Registration endpoints
-  async getPendingRegistrations(filters?: { status?: string }) {
+  async getPendingRegistrations(filters?: { status?: string; branchId?: string }) {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.branchId) params.append('branchId', filters.branchId);
 
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/pending-members${query}`);

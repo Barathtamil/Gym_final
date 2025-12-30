@@ -18,6 +18,8 @@ import { User } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Staffs() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [staff, setStaff] = useState<User[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,8 +32,6 @@ export default function Staffs() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -39,21 +39,40 @@ export default function Staffs() {
     username: '',
     password: '',
     role: 'staff' as 'admin' | 'staff' | 'member',
-    branchId: user?.branchId || '',
+    branchId: '',
     mobileNumber: '',
     aadharNumber: '',
     address: '',
   });
 
   useEffect(() => {
-    loadStaff();
     loadBranches();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+      if (!formData.branchId && user.branchId) {
+        setFormData(prev => ({ ...prev, branchId: user.branchId || '' }));
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadStaff();
+  }, [branchFilter]);
 
   const loadStaff = async () => {
     try {
       setIsLoading(true);
-      const data = await apiClient.getStaff();
+      const filters: any = {};
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const data = await apiClient.getStaff(filters);
       setStaff(data);
     } catch (error) {
       toast({

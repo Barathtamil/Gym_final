@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function AttendanceList() {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [allMembers, setAllMembers] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [batchFilter, setBatchFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -23,19 +24,45 @@ export default function AttendanceList() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
+
+  useEffect(() => {
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     loadAttendance();
     loadAllMembers();
-  }, [selectedDate]);
+  }, [selectedDate, branchFilter]);
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   const loadAttendance = async () => {
     try {
       setIsLoading(true);
-      const data = await apiClient.getAttendanceList({
+      const filters: any = {
         date: selectedDate,
-        branchId: user?.branchId,
-      });
+      };
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const data = await apiClient.getAttendanceList(filters);
       setAttendance(data || []);
     } catch (error) {
       toast({
@@ -50,7 +77,11 @@ export default function AttendanceList() {
 
   const loadAllMembers = async () => {
     try {
-      const members = await apiClient.getMembers({ branchId: user?.branchId, isActive: true });
+      const filters: any = { isActive: true };
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const members = await apiClient.getMembers(filters);
       setAllMembers(members || []);
     } catch (error) {
       console.error('Failed to load members:', error);
@@ -130,11 +161,14 @@ export default function AttendanceList() {
         description: 'Your Excel file is being prepared.',
       });
       
-      const blob = await apiClient.exportAttendance({ 
+      const filters: any = {
         startDate: selectedDate, 
         endDate: selectedDate,
-        branchId: user?.branchId 
-      });
+      };
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const blob = await apiClient.exportAttendance(filters);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -235,6 +269,19 @@ export default function AttendanceList() {
               className="pl-10 bg-input"
             />
           </div>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-full md:w-40 bg-input">
+              <SelectValue placeholder="Branch" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+              {branches.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={batchFilter} onValueChange={setBatchFilter}>
             <SelectTrigger className="w-full md:w-40 bg-input">
               <SelectValue placeholder="Batch" />

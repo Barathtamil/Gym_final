@@ -44,16 +44,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
+  const [branches, setBranches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterType, setFilterType] = useState<'year' | 'month' | 'range'>('year');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
 
   // Generate years list (current year and 2 years back)
   const years = Array.from({ length: 3 }, (_, i) => {
@@ -78,6 +80,19 @@ export default function Dashboard() {
   ];
 
   useEffect(() => {
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     // Load statistics on mount and when filters change
     // Only auto-load for year and month filters, not for date range
     if (filterType !== 'range') {
@@ -88,12 +103,22 @@ export default function Dashboard() {
         loadDashboard();
       }
     }
-  }, [filterType, selectedYear, selectedMonth]);
+  }, [filterType, selectedYear, selectedMonth, branchFilter]);
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
       setIsLoading(true);
-      const data = await apiClient.getDashboardStats(user?.branchId);
+      const branchId = branchFilter && branchFilter !== 'all' ? branchFilter : undefined;
+      const data = await apiClient.getDashboardStats(branchId);
       setStats(data);
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -112,6 +137,10 @@ export default function Dashboard() {
       setIsLoading(true);
       let filters: any = {};
       
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      
       if (filterType === 'year') {
         filters.year = selectedYear;
       } else if (filterType === 'month') {
@@ -121,7 +150,7 @@ export default function Dashboard() {
         if (dateFrom) filters.startDate = dateFrom;
         if (dateTo) filters.endDate = dateTo;
       }
-      if (user?.branchId) filters.branchId = user.branchId;
+      // Branch filter is already handled above
       
       const data = await apiClient.getStatistics(filters);
       setStats(data);
@@ -293,6 +322,19 @@ export default function Dashboard() {
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-semibold">Filter By:</span>
             </div>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger className="w-full md:w-40 bg-input">
+                <SelectValue placeholder="Branch" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+                {branches.map((branch) => (
+                  <SelectItem key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
               <SelectTrigger className="w-32 bg-input">
                 <SelectValue />

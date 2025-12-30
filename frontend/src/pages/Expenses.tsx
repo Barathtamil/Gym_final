@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Expense } from '@/types';
@@ -44,6 +45,7 @@ const getLastDayOfMonth = (): string => {
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState(getFirstDayOfMonth());
   const [dateTo, setDateTo] = useState(getLastDayOfMonth());
@@ -56,6 +58,7 @@ export default function Expenses() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [branchFilter, setBranchFilter] = useState<string>('all');
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -65,8 +68,30 @@ export default function Expenses() {
   });
 
   useEffect(() => {
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const defaultBranch = user.role === 'admin' ? 'all' : (user.branchId || 'all');
+      if (branchFilter === 'all' && defaultBranch !== 'all') {
+        setBranchFilter(defaultBranch);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
     loadExpenses();
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, branchFilter]);
+
+  const loadBranches = async () => {
+    try {
+      const data = await apiClient.getBranches();
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to load branches:', error);
+    }
+  };
 
   const loadExpenses = async () => {
     try {
@@ -74,6 +99,9 @@ export default function Expenses() {
       const filters: any = {};
       if (dateFrom) filters.startDate = dateFrom;
       if (dateTo) filters.endDate = dateTo;
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
       const data = await apiClient.getExpenses(filters);
       setExpenses(data || []);
     } catch (error) {
@@ -287,7 +315,11 @@ export default function Expenses() {
         description: 'Your Excel file is being prepared.',
       });
       
-      const blob = await apiClient.exportExpenses({ startDate: dateFrom, endDate: dateTo });
+      const filters: any = { startDate: dateFrom, endDate: dateTo };
+      if (branchFilter && branchFilter !== 'all') {
+        filters.branchId = branchFilter;
+      }
+      const blob = await apiClient.exportExpenses(filters);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -429,6 +461,19 @@ export default function Expenses() {
               className="pl-10 bg-input"
             />
           </div>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-full md:w-40 bg-input">
+              <SelectValue placeholder="Branch" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              {user?.role === 'admin' && <SelectItem value="all">All Branches</SelectItem>}
+              {branches.map((branch) => (
+                <SelectItem key={branch.id} value={branch.id}>
+                  {branch.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">From:</Label>
             <Input
