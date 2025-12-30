@@ -169,13 +169,29 @@ export default function Staffs() {
       return;
     }
 
+    // Validate mobile number - must be exactly 10 digits
+    if (formData.mobileNumber && formData.mobileNumber.trim() !== '') {
+      const mobileNumber = formData.mobileNumber.replace(/\D/g, ''); // Remove non-digits
+      if (mobileNumber.length !== 10) {
+        toast({
+          title: 'Validation Error',
+          description: 'Mobile number must be exactly 10 digits',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Clean mobile number (remove any non-digits) before submission
+    const cleanedMobileNumber = formData.mobileNumber ? formData.mobileNumber.replace(/\D/g, '') : '';
+
     try {
       if (isEditMode && selectedStaff) {
         const updateData: any = {
           name: formData.name,
           role: formData.role,
           branchId: formData.branchId,
-          mobileNumber: formData.mobileNumber,
+          mobileNumber: cleanedMobileNumber || undefined,
           aadharNumber: formData.aadharNumber,
           address: formData.address,
         };
@@ -194,7 +210,10 @@ export default function Staffs() {
           description: 'Staff updated successfully',
         });
       } else {
-        await apiClient.createStaff(formData);
+        await apiClient.createStaff({
+          ...formData,
+          mobileNumber: cleanedMobileNumber || undefined,
+        });
         toast({
           title: 'Success',
           description: 'Staff created successfully',
@@ -459,8 +478,17 @@ export default function Staffs() {
                   <Input
                     id="mobileNumber"
                     value={formData.mobileNumber}
-                    onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })}
+                    onChange={(e) => {
+                      // Only allow digits and limit to 10 digits
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, mobileNumber: value });
+                    }}
+                    placeholder="9876543210"
+                    maxLength={10}
                   />
+                  {formData.mobileNumber && formData.mobileNumber.length !== 10 && (
+                    <p className="text-xs text-muted-foreground">Mobile number must be 10 digits</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
