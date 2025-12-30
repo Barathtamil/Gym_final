@@ -129,6 +129,38 @@ export class AuthService {
     await pool.execute('DELETE FROM refresh_tokens WHERE userId = ?', [userId]);
     logger.info(`All sessions logged out for user ${userId}`);
   }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    // Get user from database
+    const [rows] = await pool.execute(
+      'SELECT * FROM users WHERE id = ? AND isActive = 1',
+      [userId]
+    );
+
+    const users = rows as User[];
+    if (users.length === 0) {
+      throw new Error('User not found');
+    }
+
+    const user = users[0];
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password!);
+    if (!isPasswordValid) {
+      throw new Error('Current password is incorrect');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await pool.execute(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, userId]
+    );
+
+    logger.info(`Password changed for user ${user.username}`);
+  }
 }
 
 export default new AuthService();

@@ -180,6 +180,13 @@ class ApiClient {
     this.setRefreshToken(null);
   }
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
   // Member endpoints
   async getMembers(filters?: { branchId?: string; isActive?: boolean; search?: string }) {
     const params = new URLSearchParams();

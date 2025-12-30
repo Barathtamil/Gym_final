@@ -15,11 +15,17 @@ import {
   Dumbbell,
   UserCog,
   UserPlus,
+  Key,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ThemePicker } from '@/components/ui/theme-picker';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import apiClient from '@/lib/api';
 
 interface NavItem {
   label: string;
@@ -43,7 +49,15 @@ const navItems: NavItem[] = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { user, logout, hasRole } = useAuth();
+  const { toast } = useToast();
   const location = useLocation();
 
   const filteredNavItems = navItems.filter((item) =>
@@ -146,6 +160,125 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {/* Theme Picker */}
           <ThemePicker isSidebarOpen={isSidebarOpen} />
           
+          {/* Change Password - Only for admin and staff */}
+          {user && (user.role === 'admin' || user.role === 'staff') && (
+            <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 hover:bg-accent/20"
+                >
+                  <Key className="w-5 h-5" />
+                  {isSidebarOpen && <span>Change Password</span>}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-background border-border">
+                <DialogHeader>
+                  <DialogTitle>Change Password</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                      placeholder="Enter current password"
+                      className="bg-input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                      placeholder="Enter new password"
+                      className="bg-input"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                      placeholder="Confirm new password"
+                      className="bg-input"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsChangePasswordOpen(false);
+                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+                          toast({
+                            title: 'Validation Error',
+                            description: 'All fields are required',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+
+                        if (passwordData.newPassword.length < 6) {
+                          toast({
+                            title: 'Validation Error',
+                            description: 'New password must be at least 6 characters long',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+
+                        if (passwordData.newPassword !== passwordData.confirmPassword) {
+                          toast({
+                            title: 'Validation Error',
+                            description: 'New password and confirm password do not match',
+                            variant: 'destructive',
+                          });
+                          return;
+                        }
+
+                        try {
+                          setIsChangingPassword(true);
+                          await apiClient.changePassword(passwordData.currentPassword, passwordData.newPassword);
+                          toast({
+                            title: 'Success',
+                            description: 'Password changed successfully',
+                          });
+                          setIsChangePasswordOpen(false);
+                          setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                        } catch (error: any) {
+                          toast({
+                            title: 'Error',
+                            description: error.message || 'Failed to change password',
+                            variant: 'destructive',
+                          });
+                        } finally {
+                          setIsChangingPassword(false);
+                        }
+                      }}
+                      disabled={isChangingPassword}
+                      className="btn-matrix"
+                    >
+                      {isChangingPassword ? 'Changing...' : 'Change Password'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          
           <Button
             variant="ghost"
             onClick={logout}
@@ -232,6 +365,124 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
                 </div>
                 <ThemePicker />
+                {/* Change Password - Only for admin and staff */}
+                {user && (user.role === 'admin' || user.role === 'staff') && (
+                  <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start gap-3 hover:bg-accent/20"
+                      >
+                        <Key className="w-5 h-5" />
+                        <span>Change Password</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-background border-border">
+                      <DialogHeader>
+                        <DialogTitle>Change Password</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="mobileCurrentPassword">Current Password</Label>
+                          <Input
+                            id="mobileCurrentPassword"
+                            type="password"
+                            value={passwordData.currentPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                            placeholder="Enter current password"
+                            className="bg-input"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mobileNewPassword">New Password</Label>
+                          <Input
+                            id="mobileNewPassword"
+                            type="password"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                            placeholder="Enter new password"
+                            className="bg-input"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mobileConfirmPassword">Confirm New Password</Label>
+                          <Input
+                            id="mobileConfirmPassword"
+                            type="password"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                            placeholder="Confirm new password"
+                            className="bg-input"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsChangePasswordOpen(false);
+                              setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={async () => {
+                              if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+                                toast({
+                                  title: 'Validation Error',
+                                  description: 'All fields are required',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+
+                              if (passwordData.newPassword.length < 6) {
+                                toast({
+                                  title: 'Validation Error',
+                                  description: 'New password must be at least 6 characters long',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+
+                              if (passwordData.newPassword !== passwordData.confirmPassword) {
+                                toast({
+                                  title: 'Validation Error',
+                                  description: 'New password and confirm password do not match',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+
+                              try {
+                                setIsChangingPassword(true);
+                                await apiClient.changePassword(passwordData.currentPassword, passwordData.newPassword);
+                                toast({
+                                  title: 'Success',
+                                  description: 'Password changed successfully',
+                                });
+                                setIsChangePasswordOpen(false);
+                                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                              } catch (error: any) {
+                                toast({
+                                  title: 'Error',
+                                  description: error.message || 'Failed to change password',
+                                  variant: 'destructive',
+                                });
+                              } finally {
+                                setIsChangingPassword(false);
+                              }
+                            }}
+                            disabled={isChangingPassword}
+                            className="btn-matrix"
+                          >
+                            {isChangingPassword ? 'Changing...' : 'Change Password'}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
                 <Button
                   variant="ghost"
                   onClick={logout}

@@ -377,7 +377,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${user?.role === 'admin' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
           <KpiCard
             title="Total Active Members"
             value={stats.totalActiveMembers || 0}
@@ -402,15 +402,17 @@ export default function Dashboard() {
             variant="secondary"
             delay={0.2}
           />
-          <KpiCard
-            title="Monthly Revenue"
-            value={stats.monthlyRevenue || 0}
-            icon={DollarSign}
-            prefix="₹"
-            trend={{ value: 24, isPositive: true }}
-            variant="accent"
-            delay={0.3}
-          />
+          {user?.role === 'admin' && (
+            <KpiCard
+              title="Monthly Revenue"
+              value={stats.monthlyRevenue || 0}
+              icon={DollarSign}
+              prefix="₹"
+              trend={{ value: 24, isPositive: true }}
+              variant="accent"
+              delay={0.3}
+            />
+          )}
         </div>
 
         {/* Charts Grid */}
@@ -494,51 +496,53 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Revenue by Month */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
-            onClick={() => navigate('/statistics/revenue-trend')}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-display tracking-wide">Revenue Trend</h3>
-              <div className="flex items-center gap-2 text-accent text-sm">
-                <DollarSign className="w-4 h-4" />
-                <span>Last 6 Months</span>
+          {/* Revenue by Month - Admin Only */}
+          {user?.role === 'admin' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+              onClick={() => navigate('/statistics/revenue-trend')}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-display tracking-wide">Revenue Trend</h3>
+                <div className="flex items-center gap-2 text-accent text-sm">
+                  <DollarSign className="w-4 h-4" />
+                  <span>Last 6 Months</span>
+                </div>
               </div>
-            </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={revenueByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="hsl(var(--muted-foreground))" 
-                  fontSize={12}
-                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="amount" 
-                  name="Revenue"
-                  fill="hsl(var(--accent))" 
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={revenueByMonth}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="month" 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))" 
+                    fontSize={12}
+                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar 
+                    dataKey="amount" 
+                    name="Revenue"
+                    fill="hsl(var(--accent))" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </motion.div>
+          )}
 
           {/* Membership Status */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors"
+            transition={{ delay: user?.role === 'admin' ? 0.7 : 0.6 }}
+            className={`glass-card p-6 cursor-pointer hover:bg-accent/5 transition-colors ${user?.role !== 'admin' ? 'lg:col-span-2' : ''}`}
             onClick={() => navigate('/statistics/membership-status')}
           >
             <div className="flex items-center justify-between mb-6">
@@ -579,13 +583,13 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          className={`grid grid-cols-2 ${user?.role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}
         >
           {[
             { label: 'Morning Batch', value: Math.floor((stats.todayAttendance || 0) * 0.6), trend: 'up' },
             { label: 'Evening Batch', value: Math.floor((stats.todayAttendance || 0) * 0.4), trend: 'up' },
             { label: 'New This Month', value: membershipGrowth[membershipGrowth.length - 1]?.count || 0, trend: 'up' },
-            { label: 'Renewals Due', value: stats.expiredMemberships || 0, trend: 'down' },
+            ...(user?.role === 'admin' ? [{ label: 'Renewals Due', value: stats.expiredMemberships || 0, trend: 'down' as const }] : []),
           ].map((stat, index) => (
             <motion.div
               key={index}

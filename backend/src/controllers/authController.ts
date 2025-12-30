@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import authService from '../services/authService.js';
+import { AuthRequest } from '../middleware/auth.js';
 import logger from '../utils/logger.js';
 
 export const login = async (
@@ -70,6 +71,48 @@ export const logout = async (
   } catch (error) {
     logger.error('Logout error:', error);
     next(error);
+  }
+};
+
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ error: 'Current password and new password are required' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: 'New password must be at least 6 characters long' });
+      return;
+    }
+
+    await authService.changePassword(userId, currentPassword, newPassword);
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    logger.error('Change password error:', error);
+    if (error instanceof Error) {
+      if (error.message === 'Current password is incorrect') {
+        res.status(400).json({ error: error.message });
+      } else if (error.message === 'User not found') {
+        res.status(404).json({ error: error.message });
+      } else {
+        next(error);
+      }
+    } else {
+      next(error);
+    }
   }
 };
 
